@@ -75,7 +75,8 @@ class ProductionAnalyzer:
         self,
         file_path: Path,
         chunk_mode: bool = False,
-        max_chunk_lines: int = 200
+        max_chunk_lines: int = 200,
+        max_workers: int = 4
     ) -> Optional[AnalysisResult]:
         """
         Analyze a single file.
@@ -84,6 +85,7 @@ class ProductionAnalyzer:
             file_path: Path to file
             chunk_mode: Enable chunking for large files
             max_chunk_lines: Maximum lines per chunk
+            max_workers: Number of parallel workers for chunk analysis (default: 4)
 
         Returns:
             AnalysisResult or None if file should not be analyzed
@@ -94,7 +96,7 @@ class ProductionAnalyzer:
 
         # Decide: chunked or whole-file analysis
         if chunk_mode and self._should_use_chunking(file_path):
-            return self._analyze_chunked(file_path, max_chunk_lines)
+            return self._analyze_chunked(file_path, max_chunk_lines, max_workers)
         else:
             return self._analyze_whole(file_path)
 
@@ -153,7 +155,7 @@ class ProductionAnalyzer:
         return result
 
     def _analyze_chunked(
-        self, file_path: Path, max_chunk_lines: int
+        self, file_path: Path, max_chunk_lines: int, max_workers: int = 4
     ) -> AnalysisResult:
         """
         Analyze file using chunking strategy.
@@ -183,14 +185,11 @@ class ProductionAnalyzer:
 
         print(f"Chunked file into {len(chunks)} chunks")
 
-        # Analyze chunks
+        # Analyze chunks in parallel
         chunk_analyzer = ChunkAnalyzer(analyzer=self)
-        chunk_results = []
 
-        for i, chunk in enumerate(chunks, 1):
-            print(f"Analyzing chunk {i}/{len(chunks)}: {chunk.chunk_id}")
-            result = chunk_analyzer.analyze_chunk(chunk)
-            chunk_results.append(result)
+        print(f"Analyzing {len(chunks)} chunks in parallel (workers={max_workers})...")
+        chunk_results = chunk_analyzer.analyze_chunks_parallel(chunks, max_workers=max_workers)
 
         # Merge results
         merger = ResultMerger()

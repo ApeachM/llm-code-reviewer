@@ -193,7 +193,7 @@ def test_chunk_metadata_preserved(mock_production_analyzer, temp_large_cpp_file)
 
 
 def test_error_handling_in_chunks(mock_production_analyzer, temp_large_cpp_file, monkeypatch):
-    """Test that errors in individual chunks are raised (no error suppression)."""
+    """Test that errors in individual chunks are handled gracefully with parallel processing."""
     call_count = [0]
 
     def mock_with_error(request):
@@ -217,13 +217,18 @@ def test_error_handling_in_chunks(mock_production_analyzer, temp_large_cpp_file,
 
     mock_production_analyzer.technique.analyze = Mock(side_effect=mock_with_error)
 
-    # Errors should propagate (no error suppression in analyze_chunk loop)
-    with pytest.raises(RuntimeError, match="Simulated chunk analysis error"):
-        result = mock_production_analyzer.analyze_file(
-            temp_large_cpp_file,
-            chunk_mode=True,
-            max_chunk_lines=150
-        )
+    # With parallel processing, errors are caught and stored in metadata
+    result = mock_production_analyzer.analyze_file(
+        temp_large_cpp_file,
+        chunk_mode=True,
+        max_chunk_lines=150
+    )
+
+    # Should still return a result (parallel processing handles errors gracefully)
+    assert result is not None
+
+    # Should indicate failed chunks
+    assert result.metadata['failed_chunks'] > 0
 
 
 def test_empty_result_merging(mock_production_analyzer, temp_large_cpp_file):

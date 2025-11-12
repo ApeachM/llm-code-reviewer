@@ -573,7 +573,7 @@ if self._get_chunk_line_count(chunk) > self.max_chunk_lines:
 cd /home/baum/workspace/claude-home/cpp-llm-reviewer
 
 # Run the demo
-python3 demo_ast_chunking.py
+python3 examples/demo_ast_chunking.py
 
 # 출력: 각 chunk가 어떻게 생성되고 LLM에 전달되는지 확인
 ```

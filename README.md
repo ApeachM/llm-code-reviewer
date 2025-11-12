@@ -791,6 +791,31 @@ ollama list
 
 ---
 
+## Documentation
+
+### Architecture & Developer Guide
+
+- **[Architecture Overview](docs/architecture/ARCHITECTURE.md)** - System design, components, data flow with Mermaid diagrams
+- **[Developer Guide](docs/architecture/DEVELOPER_GUIDE.md)** - Getting started, common tasks, adding new features
+- **[Quick Start](docs/QUICKSTART.md)** - Fast setup and basic usage
+
+### Experiment Guides
+
+- **[Large PR Experiment](docs/experiments/LARGE_PR_EXPERIMENT.md)** - Validate system on realistic multi-file PRs
+- **[Instruction for Claude](docs/experiments/INSTRUCTION_FOR_SPECKIT_CLAUDE.md)** - Step-by-step guide for running experiments
+- **[Quick Prompt](docs/experiments/QUICK_PROMPT.txt)** - Copy-paste prompt for another Claude session
+
+### Phase Documentation
+
+- [Phase 0: Zero-shot Baseline](docs/PHASE0_COMPLETE.md) - F1: 0.498
+- [Phase 1: Few-shot Learning](docs/PHASE1_COMPLETE.md) - F1: 0.615
+- [Phase 2: Comparative Analysis](docs/PHASE2_FINDINGS.md) - Technique comparison
+- [Phase 3: Production Readiness](docs/PHASE3_PRODUCTION.md) - CLI & integration
+- [Phase 4: Hybrid Techniques](docs/PHASE4_COMPLETE.md) - F1: 0.634
+- [Phase 5: Large File Support](docs/phases/PHASE5_COMPLETE.md) - AST-based chunking
+
+---
+
 ## Development
 
 ### Running Tests

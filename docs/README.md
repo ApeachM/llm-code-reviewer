@@ -81,7 +81,16 @@ plugins/                # Domain-specific plugins
 └── cpp/                # C++ code review plugin
 
 cli/                    # Command-line interface
-docs/                   # User documentation
+
+docs/                   # Documentation
+├── README.md           # This file
+├── QUICKSTART.md       # Quick start guide
+├── phases/             # Phase completion documents (0-5)
+├── architecture/       # Architecture & technical guides
+├── experiments/        # Experiment methodologies
+├── guides/             # User guides (Spec-kit, etc)
+└── specs/              # Spec-kit specifications
+
 tests/                  # Unit and integration tests
 ```
 
@@ -101,17 +110,27 @@ ExperimentRunner → Technique (few-shot, multi-pass, CoT) → Plugin (C++, RTL)
 
 ## Development Status
 
-- [x] Phase 0: Experimental Infrastructure (In Progress)
-- [ ] Phase 1: Framework Core + Techniques
-- [ ] Phase 2: Experiments (PRIMARY DELIVERABLE)
-- [ ] Phase 3: Production C++ Plugin
-- [ ] Phase 4: Polish & Documentation
+- [x] Phase 0: Experimental Infrastructure
+- [x] Phase 1: Framework Core + Few-shot Techniques (F1: 0.615)
+- [x] Phase 2: Multi-technique Experiments
+- [x] Phase 3: Production C++ Plugin
+- [x] Phase 4: Hybrid Analysis (Few-shot + Chain-of-Thought)
+- [x] Phase 5: Large File Support (AST-based Chunking)
 
-**MVP Target**: Phase 0-2 complete = Research proof with statistical evidence
+**Current Status**: Production-ready for C++ code analysis with PR support
+
+## Documentation
+
+- **[Quick Start Guide](QUICKSTART.md)** - Get started in 5 minutes
+- **[Architecture Overview](architecture/ARCHITECTURE.md)** - System design and components
+- **[Developer Guide](architecture/DEVELOPER_GUIDE.md)** - Contributing and extending
+- **[AST Chunking Explained](architecture/AST_CHUNKING_EXPLAINED.md)** - Deep dive into large file handling
+- **[Phase Documents](phases/)** - Detailed phase completion reports
+- **[Experiment Guides](experiments/)** - How to run experiments
 
 ## License
 
-[To be determined]
+MIT License - See [LICENSE](../LICENSE) for details
 
 ## Contributing
 

@@ -50,3 +50,13 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Test files (example/large test files)
+example_code.cpp
+large_file_test.cpp
+large_module.cpp
+*_test.cpp
+
+# Spec-kit working documents (keep only PHASE*_COMPLETE.md)
+PHASE*_READY.md
+SPECKIT_*_GUIDE.md

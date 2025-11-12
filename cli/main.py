@@ -240,25 +240,40 @@ def analyze():
 @click.option('--model', '-m', default='deepseek-coder:33b-instruct',
               help='Ollama model to use')
 @click.option('--output', '-o', type=click.Path(), help='Output file (markdown)')
-def file(file_path: str, model: str, output: Optional[str]):
+@click.option('--chunk/--no-chunk', default=False,
+              help='Enable chunking for large files (default: disabled)')
+@click.option('--chunk-size', default=200, type=int,
+              help='Maximum lines per chunk (default: 200)')
+def file(file_path: str, model: str, output: Optional[str], chunk: bool, chunk_size: int):
     """
     Analyze a single file.
 
     Example:
         llm-framework analyze file src/main.cpp
         llm-framework analyze file src/main.cpp --output report.md
+        llm-framework analyze file src/main.cpp --chunk --chunk-size 150
     """
     from plugins.production_analyzer import ProductionAnalyzer
 
     console.print(f"\n[bold cyan]Analyzing file:[/bold cyan] {file_path}")
-    console.print(f"[bold]Model:[/bold] {model}\n")
+    console.print(f"[bold]Model:[/bold] {model}")
+
+    if chunk:
+        console.print(f"[bold]Chunk mode:[/bold] Enabled (max {chunk_size} lines per chunk)")
+    else:
+        console.print(f"[bold]Chunk mode:[/bold] Disabled")
+    console.print()
 
     # Create analyzer
     analyzer = ProductionAnalyzer(model_name=model)
 
     # Analyze
     file_path_obj = Path(file_path)
-    result = analyzer.analyze_file(file_path_obj)
+    result = analyzer.analyze_file(
+        file_path_obj,
+        chunk_mode=chunk,
+        max_chunk_lines=chunk_size
+    )
 
     if not result:
         console.print("[yellow]File not analyzed (filtered out)[/yellow]")
@@ -296,27 +311,60 @@ def file(file_path: str, model: str, output: Optional[str]):
 @click.option('--output', '-o', type=click.Path(), help='Output file (markdown)')
 @click.option('--recursive/--no-recursive', default=True,
               help='Recurse into subdirectories')
-def dir(directory: str, model: str, output: Optional[str], recursive: bool):
+@click.option('--chunk/--no-chunk', default=False,
+              help='Enable chunking for large files (default: disabled)')
+@click.option('--chunk-size', default=200, type=int,
+              help='Maximum lines per chunk (default: 200)')
+def dir(directory: str, model: str, output: Optional[str], recursive: bool, chunk: bool, chunk_size: int):
     """
     Analyze all files in a directory.
 
     Example:
         llm-framework analyze dir src/
         llm-framework analyze dir src/ --output report.md
+        llm-framework analyze dir src/ --chunk
     """
     from plugins.production_analyzer import ProductionAnalyzer
 
     console.print(f"\n[bold cyan]Analyzing directory:[/bold cyan] {directory}")
     console.print(f"[bold]Model:[/bold] {model}")
-    console.print(f"[bold]Recursive:[/bold] {recursive}\n")
+    console.print(f"[bold]Recursive:[/bold] {recursive}")
+
+    if chunk:
+        console.print(f"[bold]Chunk mode:[/bold] Enabled (max {chunk_size} lines per chunk)")
+    else:
+        console.print(f"[bold]Chunk mode:[/bold] Disabled")
+    console.print()
 
     # Create analyzer
     analyzer = ProductionAnalyzer(model_name=model)
 
-    # Analyze
+    # Analyze directory with chunking support
     dir_path = Path(directory)
     with console.status("[bold green]Analyzing files...") as status:
-        results = analyzer.analyze_directory(dir_path, recursive=recursive)
+        # Note: analyze_directory doesn't support chunk_mode parameter yet
+        # We need to iterate through files manually if chunking is needed
+        if chunk:
+            # Manual iteration with chunk support
+            results = {}
+            if recursive:
+                pattern = "**/*"
+            else:
+                pattern = "*"
+
+            for file_path in dir_path.glob(pattern):
+                if not file_path.is_file():
+                    continue
+
+                result = analyzer.analyze_file(
+                    file_path,
+                    chunk_mode=True,
+                    max_chunk_lines=chunk_size
+                )
+                if result:
+                    results[file_path] = result
+        else:
+            results = analyzer.analyze_directory(dir_path, recursive=recursive)
 
     # Display statistics
     if not results:
@@ -361,7 +409,11 @@ def dir(directory: str, model: str, output: Optional[str], recursive: bool):
 @click.option('--model', '-m', default='deepseek-coder:33b-instruct',
               help='Ollama model to use')
 @click.option('--output', '-o', type=click.Path(), help='Output file (markdown)')
-def pr(repo: str, base: str, head: str, model: str, output: Optional[str]):
+@click.option('--chunk/--no-chunk', default=False,
+              help='Enable chunking for large files (default: disabled)')
+@click.option('--chunk-size', default=200, type=int,
+              help='Maximum lines per chunk (default: 200)')
+def pr(repo: str, base: str, head: str, model: str, output: Optional[str], chunk: bool, chunk_size: int):
     """
     Analyze changes in a pull request.
 
@@ -370,20 +422,60 @@ def pr(repo: str, base: str, head: str, model: str, output: Optional[str]):
     Example:
         llm-framework analyze pr --base main --head feature-branch
         llm-framework analyze pr --output pr-review.md
+        llm-framework analyze pr --chunk
     """
     from plugins.production_analyzer import ProductionAnalyzer
+    import subprocess
 
     console.print(f"\n[bold cyan]Analyzing PR:[/bold cyan] {base}...{head}")
     console.print(f"[bold]Repository:[/bold] {repo}")
-    console.print(f"[bold]Model:[/bold] {model}\n")
+    console.print(f"[bold]Model:[/bold] {model}")
+
+    if chunk:
+        console.print(f"[bold]Chunk mode:[/bold] Enabled (max {chunk_size} lines per chunk)")
+    else:
+        console.print(f"[bold]Chunk mode:[/bold] Disabled")
+    console.print()
 
     # Create analyzer
     analyzer = ProductionAnalyzer(model_name=model)
 
-    # Analyze git diff
+    # Analyze git diff with chunking support
     repo_path = Path(repo)
     with console.status("[bold green]Analyzing changed files...") as status:
-        results = analyzer.analyze_git_diff(repo_path, base, head)
+        if chunk:
+            # Manual git diff processing with chunk support
+            try:
+                result = subprocess.run(
+                    ['git', 'diff', '--name-only', f'{base}...{head}'],
+                    cwd=repo_path,
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                changed_files = result.stdout.strip().split('\n')
+            except subprocess.CalledProcessError as e:
+                console.print(f"[bold red]Git diff failed:[/bold red] {e}")
+                return
+
+            results = {}
+            for file_name in changed_files:
+                if not file_name:
+                    continue
+
+                file_path = repo_path / file_name
+                if not file_path.exists():
+                    continue
+
+                result = analyzer.analyze_file(
+                    file_path,
+                    chunk_mode=True,
+                    max_chunk_lines=chunk_size
+                )
+                if result:
+                    results[file_path] = result
+        else:
+            results = analyzer.analyze_git_diff(repo_path, base, head)
 
     if not results:
         console.print("[green]✅ No issues found in changed files![/green]")

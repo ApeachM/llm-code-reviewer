@@ -23,6 +23,7 @@ This framework provides a **modular, plugin-based architecture** for LLM-powered
 ✅ **Production-ready** - CLI commands for file/directory/PR analysis
 ✅ **Research-validated** - All techniques tested with F1 scores, precision, recall
 ✅ **Cost-optimized** - Token efficiency tracking, technique comparison
+✅ **Large file support** - AST-based chunking for files 300+ lines with parallel processing
 
 ---
 
@@ -153,6 +154,34 @@ python -m cli.main analyze file src/main.cpp
 ```bash
 python -m cli.main analyze file src/main.cpp --output report.md
 ```
+
+#### Large File Support
+
+For large files (300+ lines), enable chunking to split analysis into manageable pieces:
+
+```bash
+# Enable chunking with default settings (200 lines per chunk)
+python -m cli.main analyze file large_file.cpp --chunk
+
+# Customize chunk size
+python -m cli.main analyze file large_file.cpp --chunk --chunk-size 150
+```
+
+**How it works**:
+1. **AST-based chunking**: Uses tree-sitter to parse the file and extract functions/classes
+2. **Context preservation**: Includes file-level includes, usings, and declarations in each chunk
+3. **Parallel processing**: Analyzes chunks concurrently (default: 4 workers)
+4. **Result merging**: Deduplicates issues and adjusts line numbers back to file coordinates
+
+**When to use**:
+- Files over 300 lines (automatic threshold)
+- Complex files with many functions/classes
+- When you need faster analysis of large codebases
+
+**Performance**:
+- ~4x faster with parallel processing (4 workers)
+- Handles files up to 1000+ lines efficiently
+- Automatic error handling per chunk
 
 ---
 

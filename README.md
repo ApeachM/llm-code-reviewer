@@ -538,48 +538,94 @@ analyzer = ProductionAnalyzer(plugin=PythonPlugin())
 ## Project Structure
 
 ```
-llm-framework/
-├── framework/              # Core framework
-│   ├── techniques/        # Prompting techniques
-│   │   ├── zero_shot.py
-│   │   ├── few_shot.py
-│   │   ├── chain_of_thought.py
-│   │   ├── multi_pass.py
-│   │   └── hybrid.py
-│   ├── models.py          # Pydantic models
-│   ├── experiment_runner.py
-│   ├── metrics_calculator.py
-│   └── ollama_client.py
+cpp-llm-reviewer/
+├── framework/                  # Core LLM analysis framework
+│   ├── techniques/            # Prompting techniques (zero-shot, few-shot, CoT, hybrid)
+│   │   ├── base.py           # Base technique classes
+│   │   ├── zero_shot.py      # Zero-shot prompting
+│   │   ├── few_shot.py       # Few-shot learning (3 or 5 examples)
+│   │   ├── chain_of_thought.py # CoT with reasoning
+│   │   ├── multi_pass.py     # Self-critique technique
+│   │   └── hybrid.py         # Few-shot + CoT combination
+│   ├── chunker.py            # AST-based file chunking (Phase 5)
+│   ├── chunk_analyzer.py     # Parallel chunk analysis
+│   ├── result_merger.py      # Merge and deduplicate results
+│   ├── models.py             # Pydantic data models
+│   ├── experiment_runner.py  # Experiment execution
+│   ├── metrics_calculator.py # Precision, recall, F1
+│   └── ollama_client.py      # Ollama API client
 │
-├── plugins/               # Domain-specific plugins
-│   ├── domain_plugin.py   # Abstract base class
-│   ├── cpp_plugin.py      # C++ analyzer
-│   └── production_analyzer.py
+├── plugins/                   # Domain-specific analyzers
+│   ├── domain_plugin.py      # Abstract plugin interface
+│   ├── cpp_plugin.py         # C++ code analyzer
+│   │   # - 5 categories: memory-safety, modern-cpp, performance, security, concurrency
+│   │   # - 5 curated few-shot examples
+│   └── production_analyzer.py # Production-ready analyzer with PR support
 │
-├── cli/                   # Command-line interface
-│   └── main.py
+├── cli/                       # Command-line interface
+│   └── main.py               # Entry point for all commands
+│       # - analyze file/dir/pr
+│       # - experiment run/leaderboard
 │
-├── experiments/           # Research data
-│   ├── ground_truth/     # Annotated examples
-│   │   └── cpp/          # 20 C++ examples
-│   ├── configs/          # Experiment configs
-│   └── runs/             # Experiment results
+├── experiments/               # Research artifacts
+│   ├── ground_truth/cpp/     # 20 annotated C++ examples
+│   ├── configs/              # Experiment YAML configs
+│   ├── runs/                 # Timestamped results (gitignored)
+│   └── large-pr/             # Large PR experiment results
+│       ├── EXPERIMENT_SUMMARY.md      # Spec-kit experiment results
+│       ├── EVALUATION_BY_REVIEWER.md  # Evaluation by primary session
+│       └── synthetic-pr-analysis.md   # 15-file PR analysis output
 │
-├── tests/                 # Integration tests
-│   ├── test_phase1_integration.py
-│   ├── test_phase2_integration.py
-│   └── test_phase3_integration.py
+├── test-data/                 # Test data and examples
+│   ├── sample-pr-001/        # Sample PR test case
+│   └── synthetic-pr/         # 15 synthetic C++ files (experiment data)
+│       ├── module_1.cpp      # Test files with intentional bugs
+│       └── ...
 │
-├── docs/                  # Documentation
-│   ├── PHASE0_COMPLETE.md  # Evaluation infra
-│   ├── PHASE1_COMPLETE.md  # Framework core
-│   ├── PHASE2_FINDINGS.md  # Research results
-│   ├── PHASE3_PRODUCTION.md # Production tools
-│   └── PHASE4_COMPLETE.md   # Hybrid techniques
+├── examples/                  # Demo scripts and examples
+│   └── demo_ast_chunking.py  # Interactive AST chunking demonstration
 │
-├── pyproject.toml         # Project metadata
-├── requirements.txt       # Dependencies
-└── README.md             # This file
+├── tests/                     # Integration tests
+│   ├── test_phase0_integration.py  # Zero-shot baseline tests
+│   ├── test_phase1_integration.py  # Few-shot tests
+│   ├── test_phase2_integration.py  # Multi-technique comparison
+│   ├── test_phase3_integration.py  # Production analyzer tests
+│   ├── test_phase4_integration.py  # Hybrid technique tests
+│   └── test_phase5_integration.py  # Chunking tests
+│
+├── docs/                      # Comprehensive documentation
+│   ├── README.md             # Documentation index
+│   ├── QUICKSTART.md         # Quick start guide
+│   │
+│   ├── phases/               # Phase completion reports (0-5)
+│   │   ├── PHASE0_COMPLETE.md   # Zero-shot baseline (F1: 0.498)
+│   │   ├── PHASE1_COMPLETE.md   # Few-shot learning (F1: 0.615)
+│   │   ├── PHASE2_COMPLETE.md   # Technique comparison
+│   │   ├── PHASE3_COMPLETE.md   # Production tools (CLI, PR)
+│   │   ├── PHASE4_COMPLETE.md   # Hybrid techniques (F1: 0.634)
+│   │   ├── PHASE4_HYBRID.md     # Hybrid deep dive
+│   │   └── PHASE5_COMPLETE.md   # Large file support (AST chunking)
+│   │
+│   ├── architecture/         # Technical architecture docs
+│   │   ├── ARCHITECTURE.md         # System design with Mermaid diagrams
+│   │   ├── DEVELOPER_GUIDE.md      # Contributing guide
+│   │   └── AST_CHUNKING_EXPLAINED.md # Deep dive into chunking
+│   │
+│   ├── experiments/          # Experiment guides
+│   │   ├── LARGE_PR_EXPERIMENT.md           # Large PR validation
+│   │   └── INSTRUCTION_FOR_SPECKIT_CLAUDE.md # Experiment workflow
+│   │
+│   ├── guides/               # User guides
+│   │   └── SPECKIT_USAGE_GUIDE.md  # Spec-kit workflow guide
+│   │
+│   └── specs/                # Spec-kit specifications
+│       └── 003-llm-framework-core/  # Core spec documents
+│
+├── .gitignore                # Git ignore rules
+├── LICENSE                   # MIT License
+├── README.md                 # This file
+├── requirements.txt          # Python dependencies
+└── pyproject.toml            # Project metadata
 ```
 
 ---
@@ -599,7 +645,7 @@ Comprehensive evaluation of 4 techniques on 20 C++ examples:
 
 **Key Finding**: Few-shot-5 wins overall, but chain-of-thought excels at modern-cpp (0.727 F1 vs 0.000)
 
-See [PHASE2_FINDINGS.md](PHASE2_FINDINGS.md) for detailed analysis.
+See [docs/phases/PHASE2_COMPLETE.md](docs/phases/PHASE2_COMPLETE.md) for detailed analysis.
 
 ### Phase 4: Hybrid Techniques
 
@@ -612,7 +658,7 @@ Explored combining techniques for improved accuracy:
 
 **Key Finding**: Hybrid improves F1 by 3.1% and unlocks modern-cpp category, but at 4x latency cost.
 
-See [PHASE4_COMPLETE.md](PHASE4_COMPLETE.md) for detailed analysis.
+See [docs/phases/PHASE4_COMPLETE.md](docs/phases/PHASE4_COMPLETE.md) for detailed analysis.
 
 ---
 
@@ -807,11 +853,11 @@ ollama list
 
 ### Phase Documentation
 
-- [Phase 0: Zero-shot Baseline](docs/PHASE0_COMPLETE.md) - F1: 0.498
-- [Phase 1: Few-shot Learning](docs/PHASE1_COMPLETE.md) - F1: 0.615
-- [Phase 2: Comparative Analysis](docs/PHASE2_FINDINGS.md) - Technique comparison
-- [Phase 3: Production Readiness](docs/PHASE3_PRODUCTION.md) - CLI & integration
-- [Phase 4: Hybrid Techniques](docs/PHASE4_COMPLETE.md) - F1: 0.634
+- [Phase 0: Zero-shot Baseline](docs/phases/PHASE0_COMPLETE.md) - F1: 0.498
+- [Phase 1: Few-shot Learning](docs/phases/PHASE1_COMPLETE.md) - F1: 0.615
+- [Phase 2: Comparative Analysis](docs/phases/PHASE2_COMPLETE.md) - Technique comparison
+- [Phase 3: Production Readiness](docs/phases/PHASE3_COMPLETE.md) - CLI & integration
+- [Phase 4: Hybrid Techniques](docs/phases/PHASE4_COMPLETE.md) - F1: 0.634
 - [Phase 5: Large File Support](docs/phases/PHASE5_COMPLETE.md) - AST-based chunking
 
 ---

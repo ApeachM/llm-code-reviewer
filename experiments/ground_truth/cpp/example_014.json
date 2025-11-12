@@ -1,0 +1,15 @@
+{
+  "id": "example_014",
+  "description": "SQL injection vulnerability",
+  "code": "#include <string>\n#include <sqlite3.h>\n\nvoid getUserData(const std::string& username) {\n    sqlite3* db;\n    std::string query = \"SELECT * FROM users WHERE name = '\" + username + \"'\"; // SQL injection!\n    sqlite3_exec(db, query.c_str(), nullptr, nullptr, nullptr);\n}",
+  "file_path": "sql_injection.cpp",
+  "expected_issues": [
+    {
+      "category": "security",
+      "severity": "critical",
+      "line": 6,
+      "description": "SQL injection vulnerability - unsanitized user input in query",
+      "reasoning": "User input 'username' is directly concatenated into SQL query without sanitization or parameterization. Attacker can inject malicious SQL (e.g., username = \"'; DROP TABLE users; --\"). Use prepared statements with parameter binding."
+    }
+  ]
+}

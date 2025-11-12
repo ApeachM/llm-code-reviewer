@@ -1,0 +1,15 @@
+{
+  "id": "example_012",
+  "description": "Missing move semantics opportunity",
+  "code": "#include <vector>\n#include <string>\n\nstd::vector<std::string> createLargeVector() {\n    std::vector<std::string> result;\n    // ... populate result\n    return result; // OK with RVO, but explicit move can help\n}\n\nstd::vector<std::string> data = createLargeVector();\nstd::vector<std::string> copy = data; // should use std::move if data not needed",
+  "file_path": "missing_move.cpp",
+  "expected_issues": [
+    {
+      "category": "performance",
+      "severity": "low",
+      "line": 11,
+      "description": "Consider using std::move to avoid expensive copy if source is no longer needed",
+      "reasoning": "Variable 'data' is copied to 'copy'. If 'data' is not used after this line, use std::move(data) to transfer ownership instead of copying, avoiding expensive deep copy of vector contents."
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "example_007",
+  "description": "Using C-style array instead of std::array",
+  "code": "int data[100];\nfor (int i = 0; i < 100; i++) {\n    data[i] = i * 2;\n}\nreturn data[50];",
+  "file_path": "c_array_modernize.cpp",
+  "expected_issues": [
+    {
+      "category": "modern-cpp",
+      "severity": "low",
+      "line": 1,
+      "description": "Use std::array instead of C-style array",
+      "reasoning": "C-style array 'data[100]' should be replaced with std::array<int, 100> for type safety, bounds checking in debug mode, and compatibility with STL algorithms."
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+# Model comparison: Qwen 2.5 14B
+# Compare against deepseek-coder:33b-instruct baseline
+
+experiment_id: model_qwen_14b
+technique_name: few_shot_5
+model_name: qwen2.5:14b  # Different model, same technique
+dataset_path: experiments/ground_truth/cpp
+
+technique_params:
+  system_prompt: |
+    You are an expert C++ code reviewer. Analyze code for issues in these categories:
+    memory-safety, modern-cpp, performance, security, concurrency
+
+    Respond with JSON array of issues. Each issue: {category, severity, line, description, reasoning}
+
+  few_shot_examples:
+    - id: example_001
+      code: "int* ptr = new int(10);\nreturn 0;"
+      issues:
+        - category: memory-safety
+          severity: critical
+          line: 1
+          description: "Memory leak"
+          reasoning: "No delete statement."
+
+    - id: example_002
+      code: "int* ptr = new int(100);\ndelete ptr;\nstd::cout << *ptr;"
+      issues:
+        - category: memory-safety
+          severity: critical
+          line: 3
+          description: "Use-after-free"
+          reasoning: "Accessing freed memory."
+
+    - id: example_006
+      code: "Widget* w = new Widget(42);\ndelete w;"
+      issues:
+        - category: modern-cpp
+          severity: medium
+          line: 1
+          description: "Use unique_ptr"
+          reasoning: "Manual memory management."
+
+    - id: example_015
+      code: "int counter = 0;\nvoid inc() { counter++; }\nstd::thread t1(inc); t2(inc);"
+      issues:
+        - category: concurrency
+          severity: critical
+          line: 2
+          description: "Data race"
+          reasoning: "Unsynchronized access."
+
+    - id: example_017
+      code: "std::unique_ptr<int> ptr = std::make_unique<int>(42);"
+      issues: []
+
+  temperature: 0.1
+  max_tokens: 2000
+
+seed: 42

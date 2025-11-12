@@ -31,14 +31,14 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-Verify this feature aligns with all constitutional principles:
+Verify this feature aligns with all constitutional principles (Constitution v2.0.0):
 
-- [ ] **Privacy-First, Local LLM Only**: Feature uses only local Ollama models, no cloud services
-- [ ] **Git-Native Integration**: Feature integrates properly with git workflow (PR-based reviews)
-- [ ] **Token-Efficient, Context-Aware Review**: Feature respects token constraints and uses RAG where applicable
-- [ ] **C++ Code Quality Focus**: Feature supports C++ analysis priorities (memory safety, modern C++, performance, security)
-- [ ] **Actionable, Structured Output**: Feature produces specific, line-referenced, actionable output
-- [ ] **LLM Engineering Excellence**: Feature uses proper prompt engineering, few-shot examples, and configuration
+- [ ] **Privacy-First, Local LLM Only**: Feature uses only local Ollama models, no cloud services, on-premise capable
+- [ ] **Domain-Agnostic Plugin Architecture**: Feature respects plugin boundaries (framework vs plugin code separation)
+- [ ] **LLM Engineering Excellence**: Feature uses proper prompt engineering, few-shot examples, multi-pass review, chain-of-thought
+- [ ] **Data-Driven Evaluation Framework**: Feature includes metrics (precision, recall, F1, token efficiency) and evaluation strategy
+- [ ] **Token Efficiency & Context Management**: Feature implements smart context selection and token budget management
+- [ ] **Production-Ready Engineering**: Feature includes type safety (Pydantic), tests, documentation, error handling
 
 *All boxes must be checked. Document any violations in Complexity Tracking below with justification.*
 

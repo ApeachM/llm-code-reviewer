@@ -1,0 +1,15 @@
+{
+  "id": "example_002",
+  "description": "Use-after-free bug",
+  "code": "int* ptr = new int(100);\ndelete ptr;\nstd::cout << *ptr << std::endl; // use after free!",
+  "file_path": "use_after_free.cpp",
+  "expected_issues": [
+    {
+      "category": "memory-safety",
+      "severity": "critical",
+      "line": 3,
+      "description": "Use-after-free - accessing pointer after deletion",
+      "reasoning": "Pointer 'ptr' is deleted on line 2, but then dereferenced on line 3. Accessing freed memory leads to undefined behavior and potential crashes or security vulnerabilities."
+    }
+  ]
+}

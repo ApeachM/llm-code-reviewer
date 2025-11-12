@@ -1,0 +1,15 @@
+{
+  "id": "example_006",
+  "description": "Raw pointer should use unique_ptr",
+  "code": "class Widget {\npublic:\n    Widget(int val) : value(val) {}\n    int value;\n};\n\nWidget* w = new Widget(42);\nstd::cout << w->value << std::endl;\ndelete w;",
+  "file_path": "raw_pointer_modernize.cpp",
+  "expected_issues": [
+    {
+      "category": "modern-cpp",
+      "severity": "medium",
+      "line": 7,
+      "description": "Use std::unique_ptr instead of raw pointer with manual delete",
+      "reasoning": "Raw pointer allocated with 'new' and manually deleted. Modern C++ should use std::unique_ptr for automatic memory management and exception safety."
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "example_003",
+  "description": "Double free vulnerability",
+  "code": "int* ptr = new int(50);\ndelete ptr;\ndelete ptr; // double free!",
+  "file_path": "double_free.cpp",
+  "expected_issues": [
+    {
+      "category": "memory-safety",
+      "severity": "critical",
+      "line": 3,
+      "description": "Double free - pointer deleted twice",
+      "reasoning": "Pointer 'ptr' is deleted on line 2, then deleted again on line 3. Double free leads to heap corruption and potential crashes or security vulnerabilities."
+    }
+  ]
+}

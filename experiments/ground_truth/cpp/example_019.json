@@ -1,0 +1,7 @@
+{
+  "id": "example_019",
+  "description": "Clean code with std::array and range-based for - no issues",
+  "code": "#include <array>\n#include <algorithm>\n#include <iostream>\n\nstd::array<int, 5> data = {1, 2, 3, 4, 5};\nfor (const auto& val : data) {\n    std::cout << val << std::endl;\n}\nauto max_val = *std::max_element(data.begin(), data.end());\nreturn max_val;",
+  "file_path": "clean_array_usage.cpp",
+  "expected_issues": []
+}

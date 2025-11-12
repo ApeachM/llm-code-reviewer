@@ -1,0 +1,35 @@
+# Multi-pass review with self-critique
+# Research hypothesis: -20% false positives through self-critique
+
+experiment_id: multi_pass_self_critique
+technique_name: multi_pass
+model_name: deepseek-coder:33b-instruct
+dataset_path: experiments/ground_truth/cpp
+
+technique_params:
+  # Pass 1: Initial detection
+  pass1_prompt: |
+    You are an expert C++ code reviewer. Analyze this code for potential issues.
+    Categories: memory-safety, modern-cpp, performance, security, concurrency
+
+    Be thorough - look for any potential issues, even if you're not 100% certain.
+    Respond with JSON array: [{category, severity, line, description, reasoning}]
+
+  # Pass 2: Self-critique (review your own findings)
+  pass2_prompt: |
+    You previously identified these potential issues:
+    {PASS1_ISSUES}
+
+    Now review each issue critically:
+    1. Is this actually an issue or a false positive?
+    2. What's your confidence level (0.0-1.0)?
+    3. Should this issue be kept, modified, or removed?
+
+    Respond with revised JSON array, adding "confidence" field to each issue.
+    Remove false positives. Keep only issues with confidence >= 0.6.
+
+  confidence_threshold: 0.6  # Only keep issues with 60%+ confidence
+  temperature: 0.1
+  max_tokens: 2000  # Per pass
+
+seed: 42

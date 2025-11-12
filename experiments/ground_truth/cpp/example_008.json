@@ -1,0 +1,22 @@
+{
+  "id": "example_008",
+  "description": "Using NULL instead of nullptr",
+  "code": "int* ptr = NULL; // should use nullptr\nif (ptr == NULL) {\n    std::cout << \"Pointer is null\" << std::endl;\n}",
+  "file_path": "null_modernize.cpp",
+  "expected_issues": [
+    {
+      "category": "modern-cpp",
+      "severity": "low",
+      "line": 1,
+      "description": "Use nullptr instead of NULL macro",
+      "reasoning": "NULL is a C-style macro that can cause type ambiguity. C++11 introduced nullptr as a type-safe null pointer constant."
+    },
+    {
+      "category": "modern-cpp",
+      "severity": "low",
+      "line": 2,
+      "description": "Use nullptr instead of NULL macro",
+      "reasoning": "NULL comparison should use nullptr for type safety and consistency with modern C++ practices."
+    }
+  ]
+}

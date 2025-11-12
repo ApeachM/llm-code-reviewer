@@ -1,0 +1,34 @@
+# Chain-of-thought prompting
+# Research hypothesis: +30% complex bug detection through explicit reasoning
+
+experiment_id: chain_of_thought
+technique_name: chain_of_thought
+model_name: deepseek-coder:33b-instruct
+dataset_path: experiments/ground_truth/cpp
+
+technique_params:
+  system_prompt: |
+    You are an expert C++ code reviewer. Use explicit step-by-step reasoning to analyze code.
+
+    For each potential issue, think through:
+    1. What is the code doing?
+    2. What could go wrong?
+    3. Under what conditions would this fail?
+    4. What category and severity does this have?
+
+    Categories: memory-safety, modern-cpp, performance, security, concurrency
+    Severities: critical, high, medium, low
+
+    Respond with:
+    1. Your reasoning (as <thinking>...</thinking>)
+    2. JSON array of issues: [{category, severity, line, description, reasoning}]
+
+    If no issues, respond with <thinking>...</thinking> followed by [].
+
+  # Require explicit reasoning in prompt
+  require_reasoning_tag: true
+
+  temperature: 0.2  # Slightly higher for more diverse reasoning
+  max_tokens: 3000  # More tokens for reasoning
+
+seed: 42

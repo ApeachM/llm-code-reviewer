@@ -1,0 +1,22 @@
+{
+  "id": "example_013",
+  "description": "Hardcoded credentials - security vulnerability",
+  "code": "#include <string>\n\nconst std::string API_KEY = \"sk-1234567890abcdef\"; // hardcoded secret!\nconst std::string PASSWORD = \"admin123\";\n\nvoid authenticate() {\n    // use API_KEY and PASSWORD\n}",
+  "file_path": "hardcoded_credentials.cpp",
+  "expected_issues": [
+    {
+      "category": "security",
+      "severity": "critical",
+      "line": 3,
+      "description": "Hardcoded API key in source code",
+      "reasoning": "API key is hardcoded as a string literal. Credentials should never be hardcoded - use environment variables, secure vaults, or configuration files with restricted permissions."
+    },
+    {
+      "category": "security",
+      "severity": "critical",
+      "line": 4,
+      "description": "Hardcoded password in source code",
+      "reasoning": "Password is hardcoded as a string literal. This is a critical security vulnerability - credentials should be loaded from secure external sources."
+    }
+  ]
+}

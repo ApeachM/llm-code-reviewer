@@ -1,0 +1,15 @@
+{
+  "id": "example_011",
+  "description": "Pass large object by value instead of const reference",
+  "code": "#include <vector>\n#include <string>\n\nstruct LargeObject {\n    std::vector<int> data;\n    std::string metadata;\n};\n\nvoid processObject(LargeObject obj) { // should be const LargeObject&\n    // ... processing\n}",
+  "file_path": "pass_by_value_performance.cpp",
+  "expected_issues": [
+    {
+      "category": "performance",
+      "severity": "medium",
+      "line": 9,
+      "description": "Pass large object by const reference instead of by value",
+      "reasoning": "Function parameter 'obj' is passed by value, causing unnecessary copy of potentially large vectors and strings. Use const LargeObject& to avoid expensive copy operations."
+    }
+  ]
+}

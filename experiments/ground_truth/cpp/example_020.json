@@ -1,0 +1,29 @@
+{
+  "id": "example_020",
+  "description": "Complex: Multiple issues - memory leak, use-after-free, and data race",
+  "code": "#include <thread>\n#include <iostream>\n\nint* global_ptr = nullptr;\n\nvoid allocateAndUse() {\n    global_ptr = new int(100); // memory leak (never deleted)\n    std::cout << *global_ptr << std::endl;\n}\n\nvoid dangerousAccess() {\n    if (global_ptr != nullptr) {\n        delete global_ptr; // use-after-free risk + data race\n        std::cout << *global_ptr << std::endl; // use-after-free!\n    }\n}\n\nstd::thread t1(allocateAndUse);\nstd::thread t2(dangerousAccess); // data race on global_ptr\nt1.join();\nt2.join();",
+  "file_path": "complex_multiple_issues.cpp",
+  "expected_issues": [
+    {
+      "category": "memory-safety",
+      "severity": "critical",
+      "line": 7,
+      "description": "Memory leak - allocated pointer may never be deleted",
+      "reasoning": "Pointer allocated with 'new' and stored in global_ptr. If dangerousAccess is not called or races occur, memory is leaked. No clear ownership or cleanup mechanism."
+    },
+    {
+      "category": "memory-safety",
+      "severity": "critical",
+      "line": 14,
+      "description": "Use-after-free - accessing pointer immediately after deletion",
+      "reasoning": "Pointer deleted on line 13, then immediately dereferenced on line 14. This is undefined behavior and will likely crash."
+    },
+    {
+      "category": "concurrency",
+      "severity": "critical",
+      "line": 4,
+      "description": "Data race - unsynchronized access to shared global pointer",
+      "reasoning": "Global pointer 'global_ptr' is accessed by multiple threads (t1 writes, t2 reads/deletes) without synchronization. This causes data races with undefined behavior. Use std::mutex or atomic operations."
+    }
+  ]
+}

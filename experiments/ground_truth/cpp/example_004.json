@@ -1,0 +1,15 @@
+{
+  "id": "example_004",
+  "description": "Array out of bounds access",
+  "code": "int arr[5] = {1, 2, 3, 4, 5};\nfor (int i = 0; i <= 5; i++) {\n    std::cout << arr[i] << std::endl;\n}",
+  "file_path": "array_bounds.cpp",
+  "expected_issues": [
+    {
+      "category": "memory-safety",
+      "severity": "critical",
+      "line": 2,
+      "description": "Array out of bounds access",
+      "reasoning": "Loop condition uses 'i <= 5' which will access arr[5], but array has indices 0-4. This accesses memory beyond the array bounds, causing undefined behavior."
+    }
+  ]
+}

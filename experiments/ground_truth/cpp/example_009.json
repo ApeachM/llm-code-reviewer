@@ -1,0 +1,15 @@
+{
+  "id": "example_009",
+  "description": "Using emplace_back instead of push_back",
+  "code": "#include <vector>\n#include <string>\n\nstruct Person {\n    std::string name;\n    int age;\n    Person(std::string n, int a) : name(n), age(a) {}\n};\n\nstd::vector<Person> people;\npeople.push_back(Person(\"Alice\", 30)); // should use emplace_back",
+  "file_path": "emplace_modernize.cpp",
+  "expected_issues": [
+    {
+      "category": "modern-cpp",
+      "severity": "low",
+      "line": 11,
+      "description": "Use emplace_back instead of push_back for in-place construction",
+      "reasoning": "push_back creates a temporary Person object then moves it into the vector. emplace_back constructs the object directly in the vector, avoiding unnecessary copy/move operations."
+    }
+  ]
+}

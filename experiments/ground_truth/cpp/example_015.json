@@ -1,0 +1,15 @@
+{
+  "id": "example_015",
+  "description": "Data race - shared variable without synchronization",
+  "code": "#include <thread>\n#include <vector>\n\nint counter = 0; // shared without protection\n\nvoid incrementCounter() {\n    for (int i = 0; i < 1000; i++) {\n        counter++; // data race!\n    }\n}\n\nstd::thread t1(incrementCounter);\nstd::thread t2(incrementCounter);\nt1.join();\nt2.join();",
+  "file_path": "data_race.cpp",
+  "expected_issues": [
+    {
+      "category": "concurrency",
+      "severity": "critical",
+      "line": 8,
+      "description": "Data race - unsynchronized access to shared variable 'counter'",
+      "reasoning": "Variable 'counter' is accessed by multiple threads without synchronization. The increment operation (counter++) is not atomic - it's read-modify-write. This causes a data race with undefined behavior. Use std::mutex or std::atomic<int>."
+    }
+  ]
+}

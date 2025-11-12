@@ -1,0 +1,15 @@
+{
+  "id": "example_010",
+  "description": "Inefficient string concatenation in loop",
+  "code": "#include <string>\n#include <vector>\n\nstd::string result;\nstd::vector<std::string> items = {\"a\", \"b\", \"c\", \"d\", \"e\"};\nfor (const auto& item : items) {\n    result = result + item; // inefficient\n}",
+  "file_path": "string_concat_performance.cpp",
+  "expected_issues": [
+    {
+      "category": "performance",
+      "severity": "medium",
+      "line": 7,
+      "description": "Inefficient string concatenation in loop - use reserve() or stringstream",
+      "reasoning": "String concatenation with operator+ creates a new string on each iteration, causing O(n²) performance. Use result += item, or better yet, reserve space upfront or use std::stringstream."
+    }
+  ]
+}

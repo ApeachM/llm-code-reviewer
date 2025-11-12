@@ -1,0 +1,15 @@
+{
+  "id": "example_001",
+  "description": "Memory leak - raw pointer never deleted",
+  "code": "int* ptr = new int(10);\n*ptr = 42;\nstd::cout << *ptr << std::endl;\nreturn 0;\n// missing: delete ptr;",
+  "file_path": "memory_leak.cpp",
+  "expected_issues": [
+    {
+      "category": "memory-safety",
+      "severity": "critical",
+      "line": 1,
+      "description": "Memory leak - dynamically allocated pointer never deleted",
+      "reasoning": "Pointer allocated with 'new' on line 1 but there is no corresponding 'delete' statement. This causes a memory leak on every execution."
+    }
+  ]
+}

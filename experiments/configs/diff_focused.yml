@@ -1,0 +1,29 @@
+# Diff-focused prompting (for PR review use case)
+# Research hypothesis: -50% token consumption by focusing on changes
+
+experiment_id: diff_focused
+technique_name: diff_focused
+model_name: deepseek-coder:33b-instruct
+dataset_path: experiments/ground_truth/cpp
+
+technique_params:
+  system_prompt: |
+    You are a C++ code reviewer focusing on code changes in a pull request.
+
+    The code shown is NEW or MODIFIED code. Focus your analysis on:
+    1. Issues introduced in the NEW/MODIFIED lines
+    2. Issues that newly MANIFEST due to these changes
+
+    DO NOT report pre-existing issues in unchanged code.
+
+    Categories: memory-safety, modern-cpp, performance, security, concurrency
+    Respond with JSON array: [{category, severity, line, description, reasoning}]
+
+  # Context selection strategy
+  context_strategy: "diff_only"  # Only analyze changed lines
+  context_lines: 3  # Show 3 lines before/after each change for context
+
+  temperature: 0.1
+  max_tokens: 1500  # Reduced tokens due to smaller context
+
+seed: 42

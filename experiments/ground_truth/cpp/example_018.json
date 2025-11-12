@@ -1,0 +1,7 @@
+{
+  "id": "example_018",
+  "description": "Clean code with RAII and modern C++ - no issues",
+  "code": "#include <vector>\n#include <memory>\n#include <mutex>\n\nclass SafeCounter {\nprivate:\n    mutable std::mutex mtx;\n    int value = 0;\npublic:\n    void increment() {\n        std::lock_guard<std::mutex> lock(mtx);\n        ++value;\n    }\n    int get() const {\n        std::lock_guard<std::mutex> lock(mtx);\n        return value;\n    }\n};\n\nauto counter = std::make_unique<SafeCounter>();\ncounter->increment();\nreturn counter->get();",
+  "file_path": "clean_modern_cpp.cpp",
+  "expected_issues": []
+}

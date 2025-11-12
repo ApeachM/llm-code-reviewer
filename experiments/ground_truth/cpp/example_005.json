@@ -1,0 +1,15 @@
+{
+  "id": "example_005",
+  "description": "Null pointer dereference",
+  "code": "int* ptr = nullptr;\n*ptr = 100; // null pointer dereference\nstd::cout << *ptr << std::endl;",
+  "file_path": "null_deref.cpp",
+  "expected_issues": [
+    {
+      "category": "memory-safety",
+      "severity": "critical",
+      "line": 2,
+      "description": "Null pointer dereference",
+      "reasoning": "Pointer 'ptr' is initialized to nullptr on line 1, then immediately dereferenced on line 2. Dereferencing null pointer causes segmentation fault."
+    }
+  ]
+}

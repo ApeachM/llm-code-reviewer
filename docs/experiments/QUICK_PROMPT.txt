@@ -1,0 +1,13 @@
+=====================================================================
+QUICK PROMPT (Copy to Spec-kit Claude)
+=====================================================================
+
+Run large PR analysis experiment on this LLM-powered C++ analyzer:
+/home/baum/workspace/claude-home/cpp-llm-reviewer
+
+Follow instructions at:
+docs/experiments/INSTRUCTION_FOR_SPECKIT_CLAUDE.md
+
+Summary: Create 15 C++ files with intentional bugs, run PR analysis, evaluate results. ~50-60 min.
+
+=====================================================================

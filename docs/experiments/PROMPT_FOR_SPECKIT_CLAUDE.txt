@@ -1,0 +1,56 @@
+=====================================================================
+COPY THIS ENTIRE PROMPT TO SPEC-KIT CLAUDE SESSION
+=====================================================================
+
+I have a production-ready LLM-powered C++ code analysis framework that needs validation through a large-scale PR analysis experiment.
+
+**Project location:**
+/home/baum/workspace/claude-home/cpp-llm-reviewer
+
+**Current status:**
+- ✅ Phase 0-5 completed (83/84 tests passing, 98.8%)
+- ✅ Large file support with AST-based chunking
+- ✅ PR analysis capability implemented
+- ✅ CLI interface ready
+- ✅ All dependencies installed in venv/
+
+**Your task:**
+Run a comprehensive large-scale PR analysis experiment to validate the system works on realistic multi-file pull requests (10+ files, 300+ lines changed).
+
+**Step-by-step instructions:**
+Please read and follow the detailed guide at:
+```
+/home/baum/workspace/claude-home/cpp-llm-reviewer/docs/experiments/INSTRUCTION_FOR_SPECKIT_CLAUDE.md
+```
+
+**What you'll do (summary):**
+1. Create a branch: `experiment/synthetic-large-pr-2024`
+2. Generate 15 C++ files with intentional issues (memory leaks, buffer overflows, etc.)
+3. Commit the files as a synthetic PR
+4. Run PR analysis: `python3 -m cli.main analyze pr --base main --head experiment/synthetic-large-pr-2024 --chunk`
+5. Evaluate results (detection rate, false positives, performance)
+6. Document findings in `experiments/large-pr/EXPERIMENT_SUMMARY.md`
+
+**Expected outcome:**
+- Analysis completes within 10 minutes
+- Finds 60-80% of intentional issues (~80-100 out of 120-150)
+- Generates actionable markdown report
+- Validates system is production-ready
+
+**Timeline:** ~50-60 minutes total
+
+**Important notes:**
+- The framework is already fully implemented - you're just running validation
+- Focus on measuring and documenting results
+- If you encounter issues, debug them (the system is stable)
+- Use the "Synthetic PR" approach (faster and more controlled than real OSS)
+
+**Deliverables:**
+1. Branch with 15 test files
+2. Analysis report: `experiments/large-pr/synthetic-pr-analysis.md`
+3. Summary document: `experiments/large-pr/EXPERIMENT_SUMMARY.md`
+4. Performance metrics and recommendations
+
+Please start by reading the instruction file and confirming you understand the task.
+
+=====================================================================

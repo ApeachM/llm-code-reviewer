@@ -1,6 +1,0 @@
-
-Analyzing PR: main...experiment/synthetic-large-pr-2024
-Repository: .
-Model: deepseek-coder:33b-instruct
-Chunk mode: Enabled (max 200 lines per chunk)
-

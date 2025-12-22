@@ -617,38 +617,72 @@ graph LR
 
 ### 3.3 확장 시나리오
 
+3-Tier 아키텍처 덕분에 **각 계층을 독립적으로 확장**할 수 있습니다.
+
+#### 3.3.1 새 언어 추가 (Tier 2 확장)
+
+**예시**: Python 지원 추가
+
 ```mermaid
 graph TB
-    subgraph "새 언어 추가 시"
-        NewLang[Python 지원 추가]
-        NewLang --> Step1["(1) PythonPlugin 구현 - Tier 2만 수정"]
-        Step1 --> Step2["(2) Ground Truth 생성 - 20개 예제"]
-        Step2 --> Step3["(3) 실험 실행 - Tier 1 재사용"]
-        Step3 --> Done1[✅ Python 지원 완료]
-    end
+    Start[Python 지원 추가]
+    Start --> Step1["(1) PythonPlugin 구현<br/>- Tier 2만 수정<br/>- DomainPlugin 인터페이스 구현"]
+    Step1 --> Step2["(2) Ground Truth 생성<br/>- 20개 Python 예제<br/>- 5개 카테고리별 샘플"]
+    Step2 --> Step3["(3) 실험 실행<br/>- Tier 1 재사용<br/>- Few-shot, Hybrid 등 모든 기법 사용 가능"]
+    Step3 --> Done[✅ Python 지원 완료]
 
-    subgraph "새 기법 추가 시"
-        NewTech[RAG 기법 추가]
-        NewTech --> Tech1["(1) RAGTechnique 구현 - Tier 1만 수정"]
-        Tech1 --> Tech2["(2) 실험 config 작성"]
-        Tech2 --> Tech3["(3) F1 score 측정 - Tier 2,3 재사용"]
-        Tech3 --> Done2[✅ RAG 기법 완료]
-    end
-
-    subgraph "새 CLI 명령 추가 시"
-        NewCmd[watch mode 추가]
-        NewCmd --> Cmd1["(1) Click 명령 추가 - Tier 3만 수정"]
-        Cmd1 --> Cmd2["(2) ProductionAnalyzer 호출 - Tier 1,2 재사용"]
-        Cmd2 --> Done3[✅ watch mode 완료]
-    end
-
-    style NewLang fill:#4caf50,color:#fff
-    style NewTech fill:#2196f3,color:#fff
-    style NewCmd fill:#ff9800,color:#fff
-    style Done1 fill:#66bb6a,color:#fff
-    style Done2 fill:#42a5f5,color:#fff
-    style Done3 fill:#ffa726,color:#fff
+    style Start fill:#4caf50,color:#fff
+    style Done fill:#66bb6a,color:#fff
 ```
+
+**핵심**: Tier 1 (Framework)과 Tier 3 (CLI)는 수정 불필요! Tier 2만 추가하면 됩니다.
+
+---
+
+#### 3.3.2 새 프롬프팅 기법 추가 (Tier 1 확장)
+
+**예시**: RAG (Retrieval-Augmented Generation) 기법 추가
+
+```mermaid
+graph TB
+    Start[RAG 기법 추가]
+    Start --> Step1["(1) RAGTechnique 구현<br/>- Tier 1만 수정<br/>- BaseTechnique 상속"]
+    Step1 --> Step2["(2) 실험 config 작성<br/>- experiment.yaml에 추가<br/>- 벡터 DB 설정"]
+    Step2 --> Step3["(3) F1 score 측정<br/>- Tier 2,3 재사용<br/>- Ground Truth로 평가"]
+    Step3 --> Done[✅ RAG 기법 완료]
+
+    style Start fill:#2196f3,color:#fff
+    style Done fill:#42a5f5,color:#fff
+```
+
+**핵심**: Tier 2 (Plugin)와 Tier 3 (CLI)는 수정 불필요! Tier 1만 추가하면 됩니다.
+
+---
+
+#### 3.3.3 새 CLI 명령 추가 (Tier 3 확장)
+
+**예시**: Watch mode 추가 (파일 변경 감지 자동 분석)
+
+```mermaid
+graph TB
+    Start[watch mode 추가]
+    Start --> Step1["(1) Click 명령 추가<br/>- Tier 3만 수정<br/>- cli.py에 @click.command 추가"]
+    Step1 --> Step2["(2) ProductionAnalyzer 호출<br/>- Tier 1,2 재사용<br/>- 파일 변경 감지 시 analyze_file 호출"]
+    Step2 --> Done[✅ watch mode 완료]
+
+    style Start fill:#ff9800,color:#fff
+    style Done fill:#ffa726,color:#fff
+```
+
+**핵심**: Tier 1 (Framework)과 Tier 2 (Plugin)는 수정 불필요! Tier 3만 추가하면 됩니다.
+
+---
+
+**확장성 요약**:
+- **새 언어**: Tier 2만 수정 (PythonPlugin, RTLPlugin 등)
+- **새 기법**: Tier 1만 수정 (RAG, Self-Consistency 등)
+- **새 명령**: Tier 3만 수정 (watch, daemon 등)
+- **기존 코드 재사용**: 나머지 계층은 그대로 사용
 
 ---
 

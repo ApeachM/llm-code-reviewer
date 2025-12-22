@@ -252,69 +252,88 @@ graph TB
 
 ### 3.1 전체 아키텍처 개요
 
+#### 3.1.1 3-Tier 아키텍처 (개념)
+
 ```mermaid
 graph TB
-    subgraph "Tier 3: Applications: (사용자 인터페이스)"
-        CLI[CLI Commands]
-        CLI --> CmdFile[analyze file]
-        CLI --> CmdDir[analyze dir]
-        CLI --> CmdPR[analyze pr]
-        CLI --> CmdExp[experiment run]
-    end
+    User[사용자] --> T3[Tier 3: Applications<br/>CLI Commands]
 
-    subgraph "Tier 2: Domain Plugins: (도메인 지식)"
-        CmdFile --> PA[ProductionAnalyzer - 분석 오케스트레이터]
-        CmdDir --> PA
-        CmdPR --> PA
+    T3 --> T2[Tier 2: Domain Plugins<br/>C++ / Python / RTL]
 
-        PA --> PluginIF[DomainPlugin Interface]
-        PluginIF --> CppPlugin[C++ Plugin - ★ Production]
-        PluginIF --> PyPlugin[Python Plugin - Future]
-        PluginIF --> RTLPlugin[RTL Plugin - Future]
+    T2 --> T1[Tier 1: Framework Core<br/>5가지 프롬프팅 기법]
 
-        CppPlugin --> Ex[5 Few-shot Examples]
-        CppPlugin --> Cat[5 Categories]
-        CppPlugin --> Filter[File Filters]
-    end
+    T1 --> LLM[LLM Layer<br/>Ollama + DeepSeek-Coder 33B]
 
-    subgraph "Tier 1: Framework Core: (분석 엔진)"
-        PA --> TechFactory[Technique Factory]
-
-        TechFactory --> ZS[Zero-Shot - F1 - 0.526]
-        TechFactory --> FS3[Few-Shot-3 - F1 - 0.588]
-        TechFactory --> FS5[Few-Shot-5 - F1 - 0.615 ★]
-        TechFactory --> CoT[Chain-of-Thought - F1 - 0.571]
-        TechFactory --> Hybrid[Hybrid - F1 - 0.634]
-
-        CmdExp --> ExpRunner[ExperimentRunner - Ground Truth 검증]
-        ExpRunner --> Metrics[MetricsCalculator - F1/Precision/Recall]
-    end
-
-    subgraph "LLM Layer: (추론 엔진)"
-        ZS --> OClient[OllamaClient - HTTP API]
-        FS3 --> OClient
-        FS5 --> OClient
-        CoT --> OClient
-        Hybrid --> OClient
-
-        OClient --> Ollama[Ollama Server - localhost:11434]
-        Ollama --> LLM[DeepSeek-Coder 33B - 실사용 ~20GB]
-    end
-
-    subgraph "Support Systems: (보조 시스템)"
-        PA --> Chunker[FileChunker - tree-sitter AST]
-        PA --> ChunkAnalyzer[ChunkAnalyzer - Parallel Processing]
-        PA --> Merger[ResultMerger - Deduplication]
-    end
-
-    style CLI fill:#1a237e,color:#fff
-    style PA fill:#283593,color:#fff
-    style CppPlugin fill:#303f9f,color:#fff
-    style FS5 fill:#4caf50,color:#fff
-    style TechFactory fill:#3949ab,color:#fff
-    style OClient fill:#5c6bc0,color:#fff
+    style T3 fill:#f57c00,color:#fff
+    style T2 fill:#388e3c,color:#fff
+    style T1 fill:#1976d2,color:#fff
     style LLM fill:#7986cb,color:#fff
-    style Chunker fill:#9fa8da,color:#fff
+```
+
+#### 3.1.2 Tier 3 (Applications) + Tier 2 (Plugins)
+
+```mermaid
+graph TB
+    CLI[CLI Commands]
+    CLI --> File[analyze file]
+    CLI --> Dir[analyze dir]
+    CLI --> PR[analyze pr]
+    CLI --> Exp[experiment run]
+
+    File --> PA[ProductionAnalyzer<br/>분석 오케스트레이터]
+    Dir --> PA
+    PR --> PA
+
+    PA --> Plugin[DomainPlugin<br/>Interface]
+
+    Plugin --> Cpp[✅ C++ Plugin<br/>Production]
+    Plugin --> Py[Python Plugin<br/>Future]
+    Plugin --> RTL[RTL Plugin<br/>Future]
+
+    Cpp --> Ex[5 Examples]
+    Cpp --> Cat[5 Categories]
+
+    Exp --> Runner[ExperimentRunner<br/>Ground Truth 검증]
+
+    style CLI fill:#f57c00,color:#fff
+    style PA fill:#388e3c,color:#fff
+    style Cpp fill:#66bb6a,color:#fff
+    style Runner fill:#9fa8da,color:#fff
+```
+
+#### 3.1.3 Tier 1 (Framework) + LLM Layer + Support
+
+```mermaid
+graph TB
+    PA[ProductionAnalyzer]
+
+    PA --> Tech[Technique Factory]
+
+    Tech --> ZS[Zero-Shot<br/>F1: 0.526]
+    Tech --> FS3[Few-Shot-3<br/>F1: 0.588]
+    Tech --> FS5[✅ Few-Shot-5<br/>F1: 0.615]
+    Tech --> CoT[Chain-of-Thought<br/>F1: 0.571]
+    Tech --> Hybrid[Hybrid<br/>F1: 0.634 ⭐]
+
+    ZS --> Client[OllamaClient]
+    FS3 --> Client
+    FS5 --> Client
+    CoT --> Client
+    Hybrid --> Client
+
+    Client --> Ollama[Ollama Server<br/>localhost:11434]
+    Ollama --> LLM[DeepSeek-Coder 33B<br/>실사용 ~20GB]
+
+    PA --> Support[Support Systems]
+    Support --> Chunker[FileChunker<br/>tree-sitter]
+    Support --> Analyzer[ChunkAnalyzer<br/>Parallel]
+    Support --> Merger[ResultMerger<br/>Dedup]
+
+    style PA fill:#388e3c,color:#fff
+    style FS5 fill:#4caf50,color:#fff
+    style Hybrid fill:#66bb6a,color:#fff
+    style Client fill:#5c6bc0,color:#fff
+    style LLM fill:#7986cb,color:#fff
 ```
 
 ---
@@ -504,50 +523,70 @@ graph TB
 
 ### 4.3 Domain Plugin - C++ 플러그인 상세
 
+#### 4.3.1 플러그인 구조 및 파일 필터링
+
 ```mermaid
 graph TB
-    subgraph "CppPlugin 구조"
-        CppPlugin[C++ Plugin]
-    end
+    CppPlugin[C++ Plugin]
 
-    subgraph "파일 필터링"
-        CppPlugin --> Extensions[지원 확장자 - .cpp .cc .cxx .h .hpp .hxx]
-        CppPlugin --> ShouldAnalyze{파일 분석 여부}
+    CppPlugin --> Extensions[지원 확장자]
+    Extensions --> Ext1[.cpp, .cc, .cxx]
+    Extensions --> Ext2[.h, .hpp, .hxx]
 
-        ShouldAnalyze -->|Skip| Skip1[test 파일]
-        ShouldAnalyze -->|Skip| Skip2[third_party/]
-        ShouldAnalyze -->|Skip| Skip3[vendor/]
-        ShouldAnalyze -->|Skip| Skip4[_test.cpp]
-        ShouldAnalyze -->|Analyze| Analyze[일반 C++ 파일]
-    end
+    CppPlugin --> Filter{파일 분석 여부}
 
-    subgraph "카테고리 정의"
-        CppPlugin --> Categories[5개 카테고리]
-
-        Categories --> C1[memory-safety - memory leak, use-after-free - buffer overflow, null deref]
-        Categories --> C2[modern-cpp - raw ptr → unique_ptr - NULL → nullptr - C-array → std::array]
-        Categories --> C3[performance - pass by value - unnecessary copy - inefficient algorithm]
-        Categories --> C4[security - hardcoded credentials - SQL injection - command injection]
-        Categories --> C5[concurrency - data race - deadlock - missing mutex]
-    end
-
-    subgraph "Few-shot Examples"
-        CppPlugin --> Examples[5개 예시]
-
-        Examples --> E1[Example 1: - Memory leak]
-        Examples --> E2[Example 2: - Buffer overflow]
-        Examples --> E3[Example 3: - Unnecessary copy]
-        Examples --> E4[Example 4: - Data race]
-        Examples --> E5[Example 5: - Clean code - Negative example]
-    end
+    Filter -->|Skip| Skip1[test 파일]
+    Filter -->|Skip| Skip2[third_party/]
+    Filter -->|Skip| Skip3[vendor/]
+    Filter -->|Skip| Skip4[*_test.cpp]
+    Filter -->|Analyze| Analyze[✅ 일반 C++ 파일]
 
     style CppPlugin fill:#4caf50,color:#fff
     style Analyze fill:#66bb6a,color:#fff
+    style Filter fill:#ffa726,color:#fff
+```
+
+#### 4.3.2 분석 카테고리 (5개)
+
+```mermaid
+graph LR
+    Categories[C++ 분석 카테고리]
+
+    Categories --> C1[🔴 memory-safety<br/>memory leak<br/>use-after-free<br/>buffer overflow]
+    Categories --> C2[🟢 modern-cpp<br/>raw ptr → unique_ptr<br/>NULL → nullptr<br/>C-array → vector]
+    Categories --> C3[🟡 performance<br/>pass by value<br/>unnecessary copy<br/>inefficient algorithm]
+    Categories --> C4[🔴 security<br/>hardcoded credentials<br/>SQL injection<br/>command injection]
+    Categories --> C5[🟣 concurrency<br/>data race<br/>deadlock<br/>missing mutex]
+
+    style Categories fill:#4caf50,color:#fff
     style C1 fill:#1976d2,color:#fff
     style C2 fill:#388e3c,color:#fff
     style C3 fill:#f57c00,color:#fff
     style C4 fill:#c62828,color:#fff
     style C5 fill:#7b1fa2,color:#fff
+```
+
+#### 4.3.3 Few-shot 예시 (각 카테고리당 1개)
+
+```mermaid
+graph TB
+    Examples[Ground Truth Examples<br/>20개 중 5개 사용]
+
+    Examples --> E1[Example 1<br/>Memory leak]
+    Examples --> E2[Example 2<br/>Buffer overflow]
+    Examples --> E3[Example 3<br/>Unnecessary copy]
+    Examples --> E4[Example 4<br/>Data race]
+    Examples --> E5[Example 5<br/>✅ Clean code<br/>Negative example]
+
+    E1 --> Use1[Few-shot 프롬프트에 포함]
+    E2 --> Use1
+    E3 --> Use1
+    E4 --> Use1
+    E5 --> Use1
+
+    style Examples fill:#4caf50,color:#fff
+    style E5 fill:#66bb6a,color:#fff
+    style Use1 fill:#1976d2,color:#fff
 ```
 
 **Few-shot 예시 선정 기준**:
@@ -560,76 +599,85 @@ graph TB
 
 ### 4.4 Large File Support - 청킹 시스템
 
+#### 4.4.1 AST 파싱 및 Chunk 생성
+
 ```mermaid
 graph TB
-    subgraph "입력"
-        LargeFile[Large C++ File - 700+ lines]
-    end
+    File[Large C++ File<br/>700+ lines]
 
-    subgraph "(1) FileChunker: AST 기반 분할"
-        LargeFile --> Parser[tree-sitter Parser - C++ AST 생성]
-        Parser --> AST[Abstract Syntax Tree]
+    File --> Parser[tree-sitter Parser]
+    Parser --> AST[Abstract Syntax Tree]
 
-        AST --> ExtractContext[컨텍스트 추출]
-        ExtractContext --> Includes[#include 문]
-        ExtractContext --> Usings[using 선언]
-        ExtractContext --> Namespaces[namespace 별칭]
+    AST --> Context[컨텍스트 추출]
+    Context --> Inc[#include 문]
+    Context --> Use[using 선언]
+    Context --> NS[namespace]
 
-        AST --> ExtractNodes[노드 추출]
-        ExtractNodes --> Functions[함수들 - function_definition]
-        ExtractNodes --> Classes[클래스들 - class_specifier]
-        ExtractNodes --> Structs[구조체들 - struct_specifier]
-    end
+    AST --> Nodes[노드 추출]
+    Nodes --> Func[함수들]
+    Nodes --> Class[클래스들]
+    Nodes --> Struct[구조체들]
 
-    subgraph "(2) Chunk 생성"
-        Functions --> CreateChunks[Chunk 생성]
-        Classes --> CreateChunks
-        Structs --> CreateChunks
+    Func --> Chunks[Chunk 생성]
+    Class --> Chunks
+    Struct --> Chunks
 
-        Includes --> AddContext[컨텍스트 추가]
-        Usings --> AddContext
-        Namespaces --> AddContext
+    Inc --> Chunks
+    Use --> Chunks
+    NS --> Chunks
 
-        CreateChunks --> Chunk1[Chunk 1 - context + function1 - lines 10-50]
-        CreateChunks --> Chunk2[Chunk 2 - context + function2 - lines 60-120]
-        CreateChunks --> ChunkN[Chunk N - context + classA - lines 500-650]
-
-        AddContext --> Chunk1
-        AddContext --> Chunk2
-        AddContext --> ChunkN
-    end
-
-    subgraph "(3) ChunkAnalyzer: 병렬 분석"
-        Chunk1 --> Worker1[Worker 1]
-        Chunk2 --> Worker2[Worker 2]
-        ChunkN --> Worker3[Worker 3]
-
-        Worker1 --> Technique1[Technique.analyze]
-        Worker2 --> Technique1
-        Worker3 --> Technique1
-
-        Technique1 --> Result1[Result 1 - issues - 2개]
-        Technique1 --> Result2[Result 2 - issues - 3개]
-        Technique1 --> ResultN[Result N - issues - 1개]
-    end
-
-    subgraph "(4) ResultMerger: 결과 통합"
-        Result1 --> AdjustLine[라인 번호 조정 - chunk → file 좌표]
-        Result2 --> AdjustLine
-        ResultN --> AdjustLine
-
-        AdjustLine --> Deduplicate[중복 제거 - line + category 기준]
-        Deduplicate --> Sort[라인 번호 정렬]
-        Sort --> FinalResult[Final Result - 11 unique issues]
-    end
+    Chunks --> C1[Chunk 1<br/>context + function1<br/>lines 10-50]
+    Chunks --> C2[Chunk 2<br/>context + function2<br/>lines 60-120]
+    Chunks --> CN[Chunk N<br/>context + classA<br/>lines 500-650]
 
     style Parser fill:#1976d2,color:#fff
-    style CreateChunks fill:#388e3c,color:#fff
-    style Worker1 fill:#f57c00,color:#fff
-    style Worker2 fill:#f57c00,color:#fff
-    style Worker3 fill:#f57c00,color:#fff
-    style Deduplicate fill:#7b1fa2,color:#fff
-    style FinalResult fill:#4caf50,color:#fff
+    style Chunks fill:#388e3c,color:#fff
+    style C1 fill:#66bb6a,color:#fff
+    style C2 fill:#66bb6a,color:#fff
+    style CN fill:#66bb6a,color:#fff
+```
+
+#### 4.4.2 병렬 분석 (ChunkAnalyzer)
+
+```mermaid
+graph LR
+    C1[Chunk 1] --> W1[Worker 1]
+    C2[Chunk 2] --> W2[Worker 2]
+    CN[Chunk N] --> W3[Worker 3]
+
+    W1 --> Tech[Technique.analyze<br/>Few-shot-5 / Hybrid]
+    W2 --> Tech
+    W3 --> Tech
+
+    Tech --> R1[Result 1<br/>2 issues]
+    Tech --> R2[Result 2<br/>3 issues]
+    Tech --> RN[Result N<br/>1 issue]
+
+    style W1 fill:#f57c00,color:#fff
+    style W2 fill:#f57c00,color:#fff
+    style W3 fill:#f57c00,color:#fff
+    style Tech fill:#1976d2,color:#fff
+```
+
+**병렬 처리 효과**: 4 workers → **4x 속도 향상**
+
+#### 4.4.3 결과 통합 (ResultMerger)
+
+```mermaid
+graph TB
+    R1[Result 1<br/>chunk 좌표] --> Adjust[라인 번호 조정]
+    R2[Result 2<br/>chunk 좌표] --> Adjust
+    RN[Result N<br/>chunk 좌표] --> Adjust
+
+    Adjust --> File[파일 좌표로 변환<br/>chunk.start_line + offset]
+
+    File --> Dedup[중복 제거<br/>line + category 기준]
+    Dedup --> Sort[라인 번호 정렬]
+    Sort --> Final[✅ Final Result<br/>11 unique issues]
+
+    style Adjust fill:#7b1fa2,color:#fff
+    style Dedup fill:#c62828,color:#fff
+    style Final fill:#4caf50,color:#fff
 ```
 
 **성능**:

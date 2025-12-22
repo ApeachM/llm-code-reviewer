@@ -594,29 +594,44 @@ cpp-llm-reviewer/
 │   └── test_phase5_integration.py  # Chunking tests
 │
 ├── docs/                      # Comprehensive documentation
-│   ├── README.md             # Documentation index
-│   ├── QUICKSTART.md         # Quick start guide
-│   │
-│   ├── phases/               # Phase completion reports (0-5)
-│   │   ├── PHASE0_COMPLETE.md   # Zero-shot baseline (F1: 0.498)
-│   │   ├── PHASE1_COMPLETE.md   # Few-shot learning (F1: 0.615)
-│   │   ├── PHASE2_COMPLETE.md   # Technique comparison
-│   │   ├── PHASE3_COMPLETE.md   # Production tools (CLI, PR)
-│   │   ├── PHASE4_COMPLETE.md   # Hybrid techniques (F1: 0.634)
-│   │   ├── PHASE4_HYBRID.md     # Hybrid deep dive
-│   │   └── PHASE5_COMPLETE.md   # Large file support (AST chunking)
-│   │
-│   ├── architecture/         # Technical architecture docs
-│   │   ├── ARCHITECTURE.md         # System design with Mermaid diagrams
-│   │   ├── DEVELOPER_GUIDE.md      # Contributing guide
-│   │   └── AST_CHUNKING_EXPLAINED.md # Deep dive into chunking
-│   │
-│   ├── experiments/          # Experiment guides
-│   │   ├── LARGE_PR_EXPERIMENT.md           # Large PR validation
-│   │   └── INSTRUCTION_FOR_SPECKIT_CLAUDE.md # Experiment workflow
+│   ├── README.md             # Documentation navigation hub
+│   ├── PROJECT_OVERVIEW.md   # Complete project guide with diagrams
 │   │
 │   ├── guides/               # User guides
-│   │   └── SPECKIT_USAGE_GUIDE.md  # Spec-kit workflow guide
+│   │   ├── quickstart.md            # 5-minute quick start
+│   │   ├── getting-started/         # Complete 10-chapter tutorial
+│   │   │   ├── 00-INDEX.md          # Learning paths
+│   │   │   ├── 01-introduction.md   # Project introduction
+│   │   │   ├── 02-installation.md   # Installation guide
+│   │   │   ├── 03-architecture.md   # Architecture overview
+│   │   │   ├── 04-prompting-techniques.md # Prompting techniques
+│   │   │   ├── 05-usage-guide.md    # Hands-on tutorials
+│   │   │   ├── 06-experiments.md    # Experiment guide
+│   │   │   └── 07-advanced-topics.md # Advanced topics
+│   │   └── speckit-usage.md         # Spec-kit workflow guide
+│   │
+│   ├── architecture/         # Technical architecture
+│   │   ├── overview.md              # System design with Mermaid diagrams
+│   │   ├── developer-guide.md       # Contributing guide
+│   │   └── ast-chunking.md          # Deep dive into chunking
+│   │
+│   ├── research/             # Research materials
+│   │   ├── phases/                  # Phase completion reports (0-5)
+│   │   │   ├── phase0-complete.md   # Zero-shot baseline (F1: 0.498)
+│   │   │   ├── phase1-complete.md   # Few-shot learning (F1: 0.615)
+│   │   │   ├── phase2-complete.md   # Technique comparison
+│   │   │   ├── phase3-complete.md   # Production tools (CLI, PR)
+│   │   │   ├── phase4-complete.md   # Hybrid techniques (F1: 0.634)
+│   │   │   ├── phase4-hybrid.md     # Hybrid deep dive
+│   │   │   └── phase5-complete.md   # Large file support (AST chunking)
+│   │   └── experiments/             # Experiment guides
+│   │       ├── instruction-for-speckit.md # Experiment workflow
+│   │       └── large-pr-experiment.md     # Large PR validation
+│   │
+│   ├── reference/            # Reference documentation
+│   │   ├── glossary.md              # Technical terms glossary
+│   │   ├── faq.md                   # Frequently asked questions
+│   │   └── troubleshooting.md       # Problem solving guide
 │   │
 │   └── specs/                # Spec-kit specifications
 │       └── 003-llm-framework-core/  # Core spec documents
@@ -645,7 +660,7 @@ Comprehensive evaluation of 4 techniques on 20 C++ examples:
 
 **Key Finding**: Few-shot-5 wins overall, but chain-of-thought excels at modern-cpp (0.727 F1 vs 0.000)
 
-See [docs/phases/PHASE2_COMPLETE.md](docs/phases/PHASE2_COMPLETE.md) for detailed analysis.
+See [docs/research/phases/phase2-complete.md](docs/research/phases/phase2-complete.md) for detailed analysis.
 
 ### Phase 4: Hybrid Techniques
 
@@ -658,7 +673,7 @@ Explored combining techniques for improved accuracy:
 
 **Key Finding**: Hybrid improves F1 by 3.1% and unlocks modern-cpp category, but at 4x latency cost.
 
-See [docs/phases/PHASE4_COMPLETE.md](docs/phases/PHASE4_COMPLETE.md) for detailed analysis.
+See [docs/research/phases/phase4-complete.md](docs/research/phases/phase4-complete.md) for detailed analysis.
 
 ---
 
@@ -839,26 +854,38 @@ ollama list
 
 ## Documentation
 
+### Getting Started
+
+- **[Documentation Hub](docs/README.md)** - Main documentation navigation with learning paths
+- **[Project Overview](docs/PROJECT_OVERVIEW.md)** - Complete project guide with Mermaid diagrams
+- **[Quick Start](docs/guides/quickstart.md)** - 5-minute setup and basic usage
+- **[Getting Started Guide](docs/guides/getting-started/00-INDEX.md)** - Complete 10-chapter tutorial
+
 ### Architecture & Developer Guide
 
-- **[Architecture Overview](docs/architecture/ARCHITECTURE.md)** - System design, components, data flow with Mermaid diagrams
-- **[Developer Guide](docs/architecture/DEVELOPER_GUIDE.md)** - Getting started, common tasks, adding new features
-- **[Quick Start](docs/QUICKSTART.md)** - Fast setup and basic usage
+- **[Architecture Overview](docs/architecture/overview.md)** - System design, components, data flow with Mermaid diagrams
+- **[Developer Guide](docs/architecture/developer-guide.md)** - Getting started, common tasks, adding new features
+- **[AST Chunking Explained](docs/architecture/ast-chunking.md)** - Deep dive into large file handling
 
 ### Experiment Guides
 
-- **[Large PR Experiment](docs/experiments/LARGE_PR_EXPERIMENT.md)** - Validate system on realistic multi-file PRs
-- **[Instruction for Claude](docs/experiments/INSTRUCTION_FOR_SPECKIT_CLAUDE.md)** - Step-by-step guide for running experiments
-- **[Quick Prompt](docs/experiments/QUICK_PROMPT.txt)** - Copy-paste prompt for another Claude session
+- **[Large PR Experiment](docs/research/experiments/large-pr-experiment.md)** - Validate system on realistic multi-file PRs
+- **[Instruction for Speckit](docs/research/experiments/instruction-for-speckit.md)** - Step-by-step guide for running experiments
 
 ### Phase Documentation
 
-- [Phase 0: Zero-shot Baseline](docs/phases/PHASE0_COMPLETE.md) - F1: 0.498
-- [Phase 1: Few-shot Learning](docs/phases/PHASE1_COMPLETE.md) - F1: 0.615
-- [Phase 2: Comparative Analysis](docs/phases/PHASE2_COMPLETE.md) - Technique comparison
-- [Phase 3: Production Readiness](docs/phases/PHASE3_COMPLETE.md) - CLI & integration
-- [Phase 4: Hybrid Techniques](docs/phases/PHASE4_COMPLETE.md) - F1: 0.634
-- [Phase 5: Large File Support](docs/phases/PHASE5_COMPLETE.md) - AST-based chunking
+- [Phase 0: Zero-shot Baseline](docs/research/phases/phase0-complete.md) - F1: 0.498
+- [Phase 1: Few-shot Learning](docs/research/phases/phase1-complete.md) - F1: 0.615
+- [Phase 2: Comparative Analysis](docs/research/phases/phase2-complete.md) - Technique comparison
+- [Phase 3: Production Readiness](docs/research/phases/phase3-complete.md) - CLI & integration
+- [Phase 4: Hybrid Techniques](docs/research/phases/phase4-complete.md) - F1: 0.634
+- [Phase 5: Large File Support](docs/research/phases/phase5-complete.md) - AST-based chunking
+
+### Reference
+
+- **[Glossary](docs/reference/glossary.md)** - Technical terms and definitions
+- **[FAQ](docs/reference/faq.md)** - Frequently asked questions
+- **[Troubleshooting](docs/reference/troubleshooting.md)** - Common issues and solutions
 
 ---
 

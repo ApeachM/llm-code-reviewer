@@ -621,24 +621,24 @@ graph LR
 graph TB
     subgraph "새 언어 추가 시"
         NewLang[Python 지원 추가]
-        NewLang --> Step1[1. PythonPlugin 구현 - Tier 2만 수정]
-        Step1 --> Step2[2. Ground Truth 생성 - 20개 예제]
-        Step2 --> Step3[3. 실험 실행 - Tier 1 재사용]
+        NewLang --> Step1["(1) PythonPlugin 구현 - Tier 2만 수정"]
+        Step1 --> Step2["(2) Ground Truth 생성 - 20개 예제"]
+        Step2 --> Step3["(3) 실험 실행 - Tier 1 재사용"]
         Step3 --> Done1[✅ Python 지원 완료]
     end
 
     subgraph "새 기법 추가 시"
         NewTech[RAG 기법 추가]
-        NewTech --> Tech1[1. RAGTechnique 구현 - Tier 1만 수정]
-        Tech1 --> Tech2[2. 실험 config 작성]
-        Tech2 --> Tech3[3. F1 score 측정 - Tier 2,3 재사용]
+        NewTech --> Tech1["(1) RAGTechnique 구현 - Tier 1만 수정"]
+        Tech1 --> Tech2["(2) 실험 config 작성"]
+        Tech2 --> Tech3["(3) F1 score 측정 - Tier 2,3 재사용"]
         Tech3 --> Done2[✅ RAG 기법 완료]
     end
 
     subgraph "새 CLI 명령 추가 시"
         NewCmd[watch mode 추가]
-        NewCmd --> Cmd1[1. Click 명령 추가 - Tier 3만 수정]
-        Cmd1 --> Cmd2[2. ProductionAnalyzer 호출 - Tier 1,2 재사용]
+        NewCmd --> Cmd1["(1) Click 명령 추가 - Tier 3만 수정"]
+        Cmd1 --> Cmd2["(2) ProductionAnalyzer 호출 - Tier 1,2 재사용"]
         Cmd2 --> Done3[✅ watch mode 완료]
     end
 
@@ -728,17 +728,17 @@ graph TB
         Base --> FS[Few-Shot]
         Base --> CoT[Chain-of-Thought]
 
-        ZS --> ZSFlow[1. 직접 질문 - 2. LLM 호출 - 3. JSON 파싱]
-        FS --> FSFlow[1. 예시 5개 추가 - 2. LLM 호출 - 3. JSON 파싱]
-        CoT --> CoTFlow[1. 단계별 추론 요청 - 2. LLM 호출 - 3. thinking 태그 파싱]
+        ZS --> ZSFlow["① 직접 질문 - ② LLM 호출 - ③ JSON 파싱"]
+        FS --> FSFlow["① 예시 5개 추가 - ② LLM 호출 - ③ JSON 파싱"]
+        CoT --> CoTFlow["① 단계별 추론 요청 - ② LLM 호출 - ③ thinking 태그 파싱"]
     end
 
     subgraph "MultiPass Techniques"
         Base --> MP[Multi-Pass]
         Base --> Hybrid[Hybrid]
 
-        MP --> MPFlow[1. Pass 1 - 버그 탐지 - 2. Pass 2 - 자기 비평 - 3. 필터링 - confidence > 0.7]
-        Hybrid --> HybridFlow[1. Pass 1 - Few-shot - 전체 카테고리 - 2. Pass 2 - CoT - modern-cpp만 - 3. 결과 병합 - 중복 제거]
+        MP --> MPFlow["① Pass 1 - 버그 탐지 - ② Pass 2 - 자기 비평 - ③ 필터링 - confidence > 0.7"]
+        Hybrid --> HybridFlow["① Pass 1 - Few-shot - 전체 카테고리 - ② Pass 2 - CoT - modern-cpp만 - ③ 결과 병합 - 중복 제거"]
     end
 
     subgraph "성능 비교"
@@ -1270,11 +1270,11 @@ graph TB
     end
 
     subgraph "Chunking 프로세스"
-        Choice --> Step1[1. tree-sitter로 - AST 파싱]
-        Step1 --> Step2[2. 함수/클래스 추출 - function_definition - class_specifier]
-        Step2 --> Step3[3. 컨텍스트 추가 - includes, usings]
-        Step3 --> Step4[4. 병렬 분석 - 4 workers]
-        Step4 --> Step5[5. 결과 병합 - 중복 제거]
+        Choice --> Step1["① tree-sitter로 - AST 파싱"]
+        Step1 --> Step2["② 함수/클래스 추출 - function_definition - class_specifier"]
+        Step2 --> Step3["③ 컨텍스트 추가 - includes, usings"]
+        Step3 --> Step4["④ 병렬 분석 - 4 workers"]
+        Step4 --> Step5["⑤ 결과 병합 - 중복 제거"]
     end
 
     subgraph "성능 측정"

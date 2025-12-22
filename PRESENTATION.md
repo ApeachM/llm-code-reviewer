@@ -252,6 +252,8 @@ graph TB
 
 ### 3.1 전체 아키텍처 개요
 
+이 프로젝트는 **3-Tier 아키텍처**로 설계되어 **확장성**과 **유지보수성**을 극대화했습니다. 각 계층은 명확한 책임을 가지며, 새로운 언어나 기법을 쉽게 추가할 수 있습니다.
+
 #### 3.1.1 3-Tier 아키텍처 (개념)
 
 ```mermaid
@@ -269,6 +271,35 @@ graph TB
     style T1 fill:#1976d2,color:#fff
     style LLM fill:#7986cb,color:#fff
 ```
+
+**계층별 역할**:
+
+- **Tier 3 (Applications)**: 사용자 인터페이스
+  - **역할**: "언제 분석할까?"
+  - **책임**: CLI 명령어 제공 (`analyze file`, `analyze pr` 등)
+  - **예**: 개발자가 `./analyze.sh file.cpp` 실행
+
+- **Tier 2 (Domain Plugins)**: 언어별 도메인 지식
+  - **역할**: "무엇을 찾을까?"
+  - **책임**: 언어별 버그 카테고리, Few-shot 예시, 파일 필터링
+  - **예**: C++ 플러그인은 "memory leak", "buffer overflow" 같은 C++ 특화 이슈 정의
+
+- **Tier 1 (Framework Core)**: 프롬프팅 로직
+  - **역할**: "어떻게 물어볼까?"
+  - **책임**: Zero-shot, Few-shot, Hybrid 같은 프롬프팅 기법 구현
+  - **예**: Few-shot-5는 5개 예시를 프롬프트에 포함해서 LLM에게 전달
+
+- **LLM Layer**: 실제 추론 엔진
+  - **역할**: 코드 분석 및 이슈 탐지
+  - **책임**: Ollama를 통해 DeepSeek-Coder 33B 모델 호출
+  - **예**: 프롬프트를 받아서 JSON 형식으로 이슈 목록 반환
+
+**왜 3-Tier인가?**
+1. **확장성**: 새 언어 추가 시 Tier 2만 추가하면 됨 (Python Plugin, RTL Plugin)
+2. **재사용성**: 모든 언어가 같은 Framework Core 사용 (Zero-shot, Few-shot 등)
+3. **유지보수**: 각 계층이 독립적이라 수정이 쉬움
+
+---
 
 #### 3.1.2 Tier 3 (Applications) + Tier 2 (Plugins)
 
@@ -300,6 +331,43 @@ graph TB
     style Cpp fill:#66bb6a,color:#fff
     style Runner fill:#9fa8da,color:#fff
 ```
+
+**상세 설명**:
+
+**Tier 3: Applications (사용자 접점)**
+- `analyze file`: 단일 C++ 파일 분석
+- `analyze dir`: 디렉토리 내 모든 파일 분석
+- `analyze pr`: Git PR의 변경된 파일만 분석
+- `experiment run`: Ground Truth로 실험 실행 (F1 score 측정)
+
+**Tier 2: Domain Plugins (언어 지식)**
+- **ProductionAnalyzer**: 실제 분석을 수행하는 오케스트레이터
+  - 파일 읽기 → 플러그인 선택 → Technique 호출 → 결과 반환
+- **DomainPlugin Interface**: 모든 플러그인이 구현해야 할 인터페이스
+  - `get_categories()`: 버그 카테고리 반환
+  - `get_examples()`: Few-shot 예시 반환
+  - `should_analyze(file)`: 파일 분석 여부 결정
+- **C++ Plugin** (현재 유일한 프로덕션 플러그인):
+  - 5개 카테고리: memory-safety, modern-cpp, performance, security, concurrency
+  - 5개 Few-shot 예시 (각 카테고리당 1개 + negative example 1개)
+  - 파일 필터: test 파일, third_party 제외
+
+**데이터 흐름 예시**:
+```
+사용자: ./analyze.sh src/main.cpp
+  ↓
+CLI: analyze file 명령 실행
+  ↓
+ProductionAnalyzer: main.cpp 읽기
+  ↓
+C++ Plugin: "분석 대상입니다" (test 파일 아님)
+  ↓
+Technique (Few-shot-5): 5개 예시와 함께 LLM에게 질문
+  ↓
+결과: 3개 이슈 발견
+```
+
+---
 
 #### 3.1.3 Tier 1 (Framework) + LLM Layer + Support
 
@@ -334,6 +402,65 @@ graph TB
     style Hybrid fill:#66bb6a,color:#fff
     style Client fill:#5c6bc0,color:#fff
     style LLM fill:#7986cb,color:#fff
+```
+
+**상세 설명**:
+
+**Tier 1: Framework Core (프롬프팅 엔진)**
+
+ProductionAnalyzer가 **Technique Factory**를 통해 5가지 프롬프팅 기법 중 하나를 선택합니다:
+
+1. **Zero-Shot** (F1: 0.526)
+   - 예시 없이 바로 질문
+   - 가장 빠르지만 정확도 낮음
+
+2. **Few-Shot-3** (F1: 0.588)
+   - 3개 예시 제공
+   - 균형잡힌 성능
+
+3. **Few-Shot-5** (F1: 0.615) ⭐ **추천**
+   - 5개 예시 제공 (각 카테고리 1개씩)
+   - **프로덕션 기본값**
+   - 높은 정확도 + 적절한 속도
+
+4. **Chain-of-Thought** (F1: 0.571)
+   - 단계별 추론 요구
+   - 설명력은 좋지만 느림
+
+5. **Hybrid** (F1: 0.634) ⭐⭐ **최고 성능**
+   - Few-shot + CoT 결합
+   - 가장 높은 정확도
+
+**LLM Layer (추론 실행)**
+- **OllamaClient**: HTTP API로 Ollama 서버 호출
+- **Ollama Server**: localhost:11434에서 실행 중
+- **DeepSeek-Coder 33B**: 실제 코드 분석 수행 (메모리 ~20GB 사용)
+
+**Support Systems (보조 기능)**
+
+대용량 파일(700줄 이상)을 처리하기 위한 시스템:
+
+1. **FileChunker**: tree-sitter로 AST 파싱 → 함수/클래스 단위로 분할
+2. **ChunkAnalyzer**: 4개 worker로 병렬 분석 (4x 속도 향상)
+3. **ResultMerger**: 결과 통합 + 중복 제거 + 라인 번호 보정
+
+**실제 분석 과정**:
+```
+1. ProductionAnalyzer: 파일 받음 (700줄)
+   ↓
+2. 파일 크기 체크: 700줄 > 임계값 → Chunking 필요
+   ↓
+3. FileChunker: AST 파싱 → 20개 함수로 분할
+   ↓
+4. Technique 선택: Few-shot-5
+   ↓
+5. ChunkAnalyzer: 20개 청크를 4개 worker로 병렬 분석
+   ↓
+6. OllamaClient → Ollama → DeepSeek-Coder 33B
+   ↓
+7. ResultMerger: 11개 unique 이슈 (중복 제거 후)
+   ↓
+8. 사용자에게 결과 반환
 ```
 
 ---

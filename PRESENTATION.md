@@ -342,11 +342,11 @@ graph TB
 
     Exp --> Runner[ExperimentRunner<br/>Ground Truth 검증]
 
-    style T3 fill:#fff3e0,stroke:#f57c00,stroke-width:3px
-    style T2 fill:#e8f5e9,stroke:#388e3c,stroke-width:3px
-    style T1 fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
-    style LLM fill:#ede7f6,stroke:#7986cb,stroke-width:3px
-    style Support fill:#f5f5f5,stroke:#757575,stroke-width:2px
+    style T3 fill:#ef6c00,stroke:#f57c00,stroke-width:3px,color:#fff
+    style T2 fill:#2e7d32,stroke:#388e3c,stroke-width:3px,color:#fff
+    style T1 fill:#1565c0,stroke:#1976d2,stroke-width:3px,color:#fff
+    style LLM fill:#5e35b1,stroke:#7986cb,stroke-width:3px,color:#fff
+    style Support fill:#616161,stroke:#757575,stroke-width:2px,color:#fff
 
     style PA fill:#66bb6a,color:#fff
     style Cpp fill:#81c784,color:#fff

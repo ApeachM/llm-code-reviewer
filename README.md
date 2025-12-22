@@ -599,15 +599,16 @@ cpp-llm-reviewer/
 │   │
 │   ├── guides/               # User guides
 │   │   ├── quickstart.md            # 5-minute quick start
-│   │   ├── getting-started/         # Complete 10-chapter tutorial
-│   │   │   ├── 00-INDEX.md          # Learning paths
-│   │   │   ├── 01-introduction.md   # Project introduction
-│   │   │   ├── 02-installation.md   # Installation guide
-│   │   │   ├── 03-architecture.md   # Architecture overview
-│   │   │   ├── 04-prompting-techniques.md # Prompting techniques
-│   │   │   ├── 05-usage-guide.md    # Hands-on tutorials
-│   │   │   ├── 06-experiments.md    # Experiment guide
-│   │   │   └── 07-advanced-topics.md # Advanced topics
+│   │   ├── getting-started/         # Complete technical guide
+│   │   │   ├── 00-INDEX.md          # Learning paths and navigation
+│   │   │   ├── 01-introduction.md   # Project introduction and background
+│   │   │   └── 02-technical-deep-dive.md # Technical journey (60-90min)
+│   │   │       # - Model selection process
+│   │   │       # - Phase 0-5 development journey
+│   │   │       # - Prompting technique evolution
+│   │   │       # - Experimental results and metrics
+│   │   │       # - Ground Truth dataset design
+│   │   │       # - Architecture and AST chunking
 │   │   └── speckit-usage.md         # Spec-kit workflow guide
 │   │
 │   ├── architecture/         # Technical architecture
@@ -859,7 +860,7 @@ ollama list
 - **[Documentation Hub](docs/README.md)** - Main documentation navigation with learning paths
 - **[Project Overview](docs/PROJECT_OVERVIEW.md)** - Complete project guide with Mermaid diagrams
 - **[Quick Start](docs/guides/quickstart.md)** - 5-minute setup and basic usage
-- **[Getting Started Guide](docs/guides/getting-started/00-INDEX.md)** - Complete 10-chapter tutorial
+- **[Getting Started Guide](docs/guides/getting-started/00-INDEX.md)** - Technical deep-dive (model selection, Phase 0-5, prompting techniques)
 
 ### Architecture & Developer Guide
 

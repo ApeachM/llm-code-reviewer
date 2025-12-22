@@ -25,16 +25,18 @@
 - **[guides/quickstart.md](guides/quickstart.md)** - 5분 만에 시작하기
   - 설치부터 첫 분석까지
 
-### 🎓 완전한 튜토리얼
-- **[guides/getting-started/](guides/getting-started/)** - 단계별 완전 가이드
-  - [00-INDEX.md](guides/getting-started/00-INDEX.md) - 학습 경로
-  - [01-introduction.md](guides/getting-started/01-introduction.md) - 프로젝트 소개 (10분)
-  - [02-installation.md](guides/getting-started/02-installation.md) - 설치 가이드 (30분)
-  - [03-architecture.md](guides/getting-started/03-architecture.md) - 아키텍처 이해
-  - [04-prompting-techniques.md](guides/getting-started/04-prompting-techniques.md) - 프롬프팅 기법
-  - [05-usage-guide.md](guides/getting-started/05-usage-guide.md) - 실습 가이드 (45분) ⭐
-  - [06-experiments.md](guides/getting-started/06-experiments.md) - 실험 실행
-  - [07-advanced-topics.md](guides/getting-started/07-advanced-topics.md) - 고급 주제
+### 🎓 완전한 가이드
+- **[guides/getting-started/](guides/getting-started/)** - 프로젝트의 원리와 개발 과정
+  - [00-INDEX.md](guides/getting-started/00-INDEX.md) - 학습 경로 및 네비게이션
+  - [01-introduction.md](guides/getting-started/01-introduction.md) - 프로젝트 소개 및 배경 (15분)
+  - [02-technical-deep-dive.md](guides/getting-started/02-technical-deep-dive.md) - 기술 심화 (60-90분) ⭐
+    - 모델 선택 과정 (DeepSeek-Coder 33B)
+    - Phase 0-5 개발 여정
+    - 프롬프팅 기법 진화 (Zero-shot → Hybrid)
+    - 실험 결과 및 메트릭
+    - Ground Truth 설계
+    - AST Chunking 원리
+    - 기술적 결정과 트레이드오프
 
 ### 🔧 특수 가이드
 - **[guides/speckit-usage.md](guides/speckit-usage.md)** - Speckit 사용 가이드

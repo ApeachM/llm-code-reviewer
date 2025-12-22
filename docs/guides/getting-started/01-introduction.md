@@ -320,14 +320,14 @@ graph TB
 
 ```mermaid
 timeline
-    title 프로젝트 개발 히스토리
+title 프로젝트 개발 히스토리
 
-    Phase 0<br/>(기준선) : Zero-shot 구현 : F1 0.498
-    Phase 1<br/>(핵심 기법) : Few-shot 구현 : F1 0.615 (+23%)
-    Phase 2<br/>(실험) : 4가지 기법 비교 : Few-shot-5 승리
-    Phase 3<br/>(도구) : CLI 개발 : file/dir/pr 명령어
-    Phase 4<br/>(최적화) : Hybrid 구현 : F1 0.634 (최고)
-    Phase 5<br/>(확장) : 대용량 파일 지원 : 700+ 라인 청킹
+Phase 0 (기준선) : Zero-shot 구현 : F1 0.498
+Phase 1 (핵심 기법) : Few-shot 구현 : F1 0.615 (+23%)
+Phase 2 (실험) : 4가지 기법 비교 : Few-shot-5 승리
+Phase 3 (도구) : CLI 개발 : file/dir/pr 명령어
+Phase 4 (최적화) : Hybrid 구현 : F1 0.634 (최고)
+Phase 5 (확장) : 대용량 파일 지원 : 700+ 라인 청킹
 ```
 
 ### 5.2 현재 상태

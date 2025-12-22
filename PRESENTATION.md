@@ -254,6 +254,116 @@ graph TB
 
 이 프로젝트는 **3-Tier 아키텍처**로 설계되어 **확장성**과 **유지보수성**을 극대화했습니다. 각 계층은 명확한 책임을 가지며, 새로운 언어나 기법을 쉽게 추가할 수 있습니다.
 
+#### 3.1.0 전체 구조 (한눈에 보기)
+
+**Tier 구분 범례**:
+- 🟠 **Tier 3**: Applications (사용자 인터페이스)
+- 🟢 **Tier 2**: Domain Plugins (언어별 지식)
+- 🔵 **Tier 1**: Framework Core (프롬프팅 엔진)
+- 🟣 **LLM Layer**: 추론 실행
+- ⚙️ **Support**: 보조 시스템
+
+```mermaid
+graph TB
+    subgraph T3["🟠 Tier 3: Applications"]
+        User[사용자]
+        CLI[CLI Commands]
+        File[analyze file]
+        Dir[analyze dir]
+        PR[analyze pr]
+        Exp[experiment run]
+
+        User --> CLI
+        CLI --> File
+        CLI --> Dir
+        CLI --> PR
+        CLI --> Exp
+    end
+
+    subgraph T2["🟢 Tier 2: Domain Plugins"]
+        PA[ProductionAnalyzer<br/>오케스트레이터]
+        Plugin[DomainPlugin Interface]
+        Cpp[C++ Plugin<br/>✅ Production]
+        Py[Python Plugin<br/>Future]
+        RTL[RTL Plugin<br/>Future]
+        CppEx[5 Examples]
+        CppCat[5 Categories]
+
+        File --> PA
+        Dir --> PA
+        PR --> PA
+        PA --> Plugin
+        Plugin --> Cpp
+        Plugin --> Py
+        Plugin --> RTL
+        Cpp --> CppEx
+        Cpp --> CppCat
+    end
+
+    subgraph T1["🔵 Tier 1: Framework Core"]
+        Tech[Technique Factory]
+        ZS[Zero-Shot<br/>F1: 0.526]
+        FS3[Few-Shot-3<br/>F1: 0.588]
+        FS5[Few-Shot-5<br/>F1: 0.615 ⭐]
+        CoT[Chain-of-Thought<br/>F1: 0.571]
+        Hybrid[Hybrid<br/>F1: 0.634 ⭐⭐]
+
+        PA --> Tech
+        Tech --> ZS
+        Tech --> FS3
+        Tech --> FS5
+        Tech --> CoT
+        Tech --> Hybrid
+    end
+
+    subgraph LLM["🟣 LLM Layer"]
+        Client[OllamaClient]
+        Ollama[Ollama Server<br/>localhost:11434]
+        Model[DeepSeek-Coder 33B<br/>실사용 ~20GB]
+
+        ZS --> Client
+        FS3 --> Client
+        FS5 --> Client
+        CoT --> Client
+        Hybrid --> Client
+        Client --> Ollama
+        Ollama --> Model
+    end
+
+    subgraph Support["⚙️ Support Systems"]
+        Chunker[FileChunker<br/>tree-sitter AST]
+        Analyzer[ChunkAnalyzer<br/>4 Workers Parallel]
+        Merger[ResultMerger<br/>Dedup + Line Fix]
+
+        PA --> Chunker
+        Chunker --> Analyzer
+        Analyzer --> Merger
+    end
+
+    Exp --> Runner[ExperimentRunner<br/>Ground Truth 검증]
+
+    style T3 fill:#fff3e0,stroke:#f57c00,stroke-width:3px
+    style T2 fill:#e8f5e9,stroke:#388e3c,stroke-width:3px
+    style T1 fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
+    style LLM fill:#ede7f6,stroke:#7986cb,stroke-width:3px
+    style Support fill:#f5f5f5,stroke:#757575,stroke-width:2px
+
+    style PA fill:#66bb6a,color:#fff
+    style Cpp fill:#81c784,color:#fff
+    style FS5 fill:#4caf50,color:#fff
+    style Hybrid fill:#66bb6a,color:#fff
+    style Model fill:#9575cd,color:#fff
+```
+
+이 다이어그램에서 **각 Tier의 경계**를 명확히 볼 수 있습니다:
+- 사용자 요청은 🟠 Tier 3에서 시작
+- 🟢 Tier 2가 언어별 지식 제공
+- 🔵 Tier 1이 프롬프팅 전략 결정
+- 🟣 LLM Layer가 실제 추론 수행
+- ⚙️ Support가 대용량 파일 처리
+
+---
+
 #### 3.1.1 3-Tier 아키텍처 (개념)
 
 ```mermaid

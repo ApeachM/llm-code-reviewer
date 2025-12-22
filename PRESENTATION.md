@@ -249,9 +249,15 @@ graph LR
 ```
 
 **벤치마크 결과** (Few-shot-5 기준, 20개 Ground Truth):
-- DeepSeek-Coder 33B: **F1 0.615** ⭐
-- Qwen 2.5 14B: F1 0.521 (-15%)
-- CodeLlama 34B: F1 0.498 (-19%)
+
+| 모델 | 크기 | RAM | F1 Score | 응답 속도 |
+|------|------|-----|----------|----------|
+| **DeepSeek-Coder 33B** | 33B | 18GB | **0.615** ⭐ | ~8초 |
+| Qwen 2.5 Coder 14B | 14B | 8GB | 0.521 (-15%) | ~5초 |
+| CodeLlama 34B | 34B | 19GB | 0.498 (-19%) | ~9초 |
+| Mistral 7B | 7B | 4GB | 0.411 (-33%) | ~3초 |
+
+**선택 근거**: DeepSeek-Coder 33B는 정확도가 가장 높고, DGX-SPARK의 24GB VRAM 내에서 여유 있게 실행 가능
 
 ---
 
@@ -814,6 +820,95 @@ graph TD
 3. **플러그인 통합**: DomainPlugin을 통해 언어별 로직 실행
 4. **결과 통합**: 중복 제거 및 라인 번호 조정
 
+#### 4.1.1 ProductionAnalyzer 클래스 구조
+
+**클래스 다이어그램**: ProductionAnalyzer가 어떻게 다른 컴포넌트들과 연결되는지 보여줍니다.
+
+```mermaid
+classDiagram
+    class ProductionAnalyzer {
+        -plugin: DomainPlugin
+        -client: OllamaClient
+        -technique: FewShotTechnique
+        +__init__(plugin, model_name, temperature)
+        +analyze_file(file_path) AnalysisResult
+        +analyze_directory(dir_path) Dict
+        +analyze_pull_request(repo, base, head) Dict
+        -_create_technique() FewShotTechnique
+        -_should_use_chunking(file_path) bool
+        -_analyze_chunked(file_path) AnalysisResult
+    }
+
+    class DomainPlugin {
+        <<interface>>
+        +get_file_extensions() List~str~
+        +should_analyze_file(path) bool
+        +get_few_shot_examples(n) List~Example~
+        +get_system_prompt() str
+    }
+
+    class OllamaClient {
+        -model_name: str
+        -temperature: float
+        +analyze_code(request, prompt) AnalysisResult
+    }
+
+    class FewShotTechnique {
+        -client: OllamaClient
+        -examples: List~Example~
+        +analyze(request) AnalysisResult
+    }
+
+    class CppPlugin {
+        +extensions: [.cpp, .h, .hpp]
+        +categories: 5개
+        +examples: 5개
+    }
+
+    ProductionAnalyzer --> DomainPlugin : uses
+    ProductionAnalyzer --> OllamaClient : uses
+    ProductionAnalyzer --> FewShotTechnique : uses
+    DomainPlugin <|-- CppPlugin : implements
+    FewShotTechnique --> OllamaClient : calls
+```
+
+**핵심 코드 구현**:
+
+```python
+class ProductionAnalyzer:
+    def __init__(self, plugin=None, model_name="deepseek-coder:33b", temperature=0.1):
+        # 1. 플러그인 설정 (기본: C++)
+        self.plugin = plugin or CppPlugin()
+
+        # 2. LLM 클라이언트 생성
+        self.client = OllamaClient(model_name, temperature, max_tokens=2000)
+
+        # 3. Few-shot 기법 설정 (플러그인 예시 사용)
+        self.technique = FewShotTechnique(
+            client=self.client,
+            examples=self.plugin.get_few_shot_examples(num_examples=5),
+            system_prompt=self.plugin.get_system_prompt()
+        )
+
+    def analyze_file(self, file_path):
+        # 플러그인이 분석 대상인지 확인 (test 파일 제외 등)
+        if not self.plugin.should_analyze_file(file_path):
+            return None
+
+        # 파일 크기에 따라 청킹 여부 결정
+        if self._should_use_chunking(file_path):
+            return self._analyze_chunked(file_path)
+
+        # 직접 분석
+        code = file_path.read_text()
+        return self.technique.analyze(AnalysisRequest(code=code))
+```
+
+**설계 패턴**:
+- **Strategy Pattern**: Technique을 교체하여 다른 프롬프팅 전략 사용 가능
+- **Plugin Architecture**: DomainPlugin 인터페이스로 새 언어 쉽게 추가
+- **Dependency Injection**: 생성자에서 plugin, model 주입받아 테스트 용이
+
 ---
 
 ### 4.2 Analysis Techniques - 프롬프팅 전략
@@ -864,7 +959,7 @@ graph TB
         ZSFlow --> ZSMetric[F1 - 0.526 - 7초]
         FSFlow --> FSMetric[F1 - 0.615 - 8초 ★]
         CoTFlow --> CoTMetric[F1 - 0.571 - 24초]
-        MPFlow --> MPMetric[F1 - 0.601 - 16초]
+        MPFlow --> MPMetric[미측정 - 실험 중단]
         HybridFlow --> HybridMetric[F1 - 0.634 - 33초]
     end
 
@@ -1118,7 +1213,7 @@ graph TB
 2. **평가 지표**: Precision, Recall, F1 Score 자동 계산
 3. **실험 자동화**: 설정 → 실행 → 결과 저장까지 자동화
 
-이 인프라 위에서 **Zero-shot 기준선*을 먼저 측정합니다.
+이 인프라 위에서 **Zero-shot 기준선**을 먼저 측정합니다.
 
 > **💡 Zero-shot이란?**
 >

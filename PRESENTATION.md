@@ -67,7 +67,7 @@ graph LR
 
     subgraph "LLM 환경"
         DGX --> Ollama[Ollama 설치 - 로컬 LLM 서버]
-        Ollama --> Model[DeepSeek-Coder 33B - 18GB 모델]
+        Ollama --> Model[DeepSeek-Coder 33B - 실사용 ~20GB]
     end
 
     subgraph "프레임워크 개발"
@@ -98,13 +98,21 @@ graph LR
 
 ### 1.3 프로젝트 목표
 
-| 목표: 달성 방법: 결과 |
+| 목표 | 달성 방법 | 결과 |
 |------|----------|------|
-| **보안 요구사항 충족**: 온프레미스 실행: ✅ 모든 데이터 내부 처리 |
-| **높은 정확도**: 5가지 기법 실험 비교: ✅ F1 0.615 (Few-shot-5) |
-| **빠른 분석 속도**: 병렬 처리 + 청킹: ✅ 700줄 파일 40초 |
-| **확장 가능성**: 플러그인 아키텍처: ✅ Python, RTL 추가 가능 |
-| **프로덕션 사용**: CLI + PR 통합: ✅ 실제 워크플로우 통합 |
+| **보안 요구사항 충족** | 온프레미스 실행 | ✅ 모든 데이터 내부 처리 |
+| **높은 정확도** | 5가지 기법 실험 비교 | ✅ F1 0.615 (Few-shot-5) |
+| **빠른 분석 속도** | 병렬 처리 + 청킹 | ✅ 700줄 파일 40초 |
+| **확장 가능성** | 플러그인 아키텍처 | ✅ Python, RTL 추가 가능 |
+| **프로덕션 사용** | CLI + PR 통합 | ✅ 실제 워크플로우 통합 |
+
+> **💡 F1 Score란?**
+>
+> F1 점수는 **정밀도(Precision)**와 **재현율(Recall)**의 조화 평균으로, 모델의 정확도를 평가하는 지표입니다.
+> - **Precision**: 모델이 발견한 이슈 중 실제 이슈의 비율 (False Positive 최소화)
+> - **Recall**: 실제 이슈 중 모델이 찾아낸 비율 (False Negative 최소화)
+> - **F1 = 2 × (Precision × Recall) / (Precision + Recall)**
+> - F1 점수가 **0.615**라는 것은 Ground Truth 대비 61.5%의 균형잡힌 정확도를 달성했다는 의미입니다.
 
 ---
 
@@ -114,35 +122,35 @@ graph LR
 
 ```mermaid
 graph TB
-    subgraph "1. 하드웨어 계층"
-        HW[DGX-SPARK - GPU - 24GB VRAM]
+    subgraph "(1) 하드웨어 계층"
+        HW[DGX-SPARK - RAM 128GB, GPU 24GB VRAM]
     end
 
-    subgraph "2. LLM 실행 계층"
+    subgraph "(2) LLM 실행 계층"
         HW --> Ollama[Ollama Server - 로컬 LLM 런타임]
-        Ollama --> Model[DeepSeek-Coder 33B - 18GB, Code-specialized]
+        Ollama --> Model[DeepSeek-Coder 33B - 실사용 ~20GB]
     end
 
-    subgraph "3. 프레임워크 계층"
+    subgraph "(3) 프레임워크 계층"
         Model --> Core[Framework Core - Python 3.12+]
         Core --> Tech[5 Techniques - Zero-shot ~ Hybrid]
         Core --> Eval[Experiment System - F1/Precision/Recall]
     end
 
-    subgraph "4. 플러그인 계층"
+    subgraph "(4) 플러그인 계층"
         Tech --> Plugin[Domain Plugins]
         Plugin --> Cpp[C++ Plugin - 5 categories, 5 examples]
         Plugin --> Future[Python/RTL Plugins - Future]
     end
 
-    subgraph "5. 응용 계층"
+    subgraph "(5) 응용 계층"
         Cpp --> CLI[CLI Commands]
         CLI --> File[analyze file]
         CLI --> Dir[analyze dir]
         CLI --> PR[analyze pr]
     end
 
-    subgraph "6. 지원 시스템"
+    subgraph "(6) 지원 시스템"
         Core --> TreeSitter[tree-sitter-cpp - AST Parsing]
         Core --> Parallel[ThreadPoolExecutor - Parallel Processing]
         Core --> Pydantic[Pydantic Models - Type Safety]
@@ -175,7 +183,7 @@ graph LR
     subgraph "평가 기준"
         M1 --> C1[✅ 최고 정확도]
         M1 --> C2[✅ 코드 특화 학습]
-        M1 --> C3[✅ 18GB 적합]
+        M1 --> C3[✅ ~20GB VRAM에 적합]
         M1 --> C4[✅ 8초 응답속도]
     end
 
@@ -290,7 +298,7 @@ graph TB
         Hybrid --> OClient
 
         OClient --> Ollama[Ollama Server - localhost:11434]
-        Ollama --> LLM[DeepSeek-Coder 33B - 18GB Model]
+        Ollama --> LLM[DeepSeek-Coder 33B - 실사용 ~20GB]
     end
 
     subgraph "Support Systems: (보조 시스템)"
@@ -558,7 +566,7 @@ graph TB
         LargeFile[Large C++ File - 700+ lines]
     end
 
-    subgraph "1. FileChunker: AST 기반 분할"
+    subgraph "(1) FileChunker: AST 기반 분할"
         LargeFile --> Parser[tree-sitter Parser - C++ AST 생성]
         Parser --> AST[Abstract Syntax Tree]
 
@@ -573,7 +581,7 @@ graph TB
         ExtractNodes --> Structs[구조체들 - struct_specifier]
     end
 
-    subgraph "2. Chunk 생성"
+    subgraph "(2) Chunk 생성"
         Functions --> CreateChunks[Chunk 생성]
         Classes --> CreateChunks
         Structs --> CreateChunks
@@ -591,7 +599,7 @@ graph TB
         AddContext --> ChunkN
     end
 
-    subgraph "3. ChunkAnalyzer: 병렬 분석"
+    subgraph "(3) ChunkAnalyzer: 병렬 분석"
         Chunk1 --> Worker1[Worker 1]
         Chunk2 --> Worker2[Worker 2]
         ChunkN --> Worker3[Worker 3]
@@ -605,7 +613,7 @@ graph TB
         Technique1 --> ResultN[Result N - issues - 1개]
     end
 
-    subgraph "4. ResultMerger: 결과 통합"
+    subgraph "(4) ResultMerger: 결과 통합"
         Result1 --> AdjustLine[라인 번호 조정 - chunk → file 좌표]
         Result2 --> AdjustLine
         ResultN --> AdjustLine
@@ -1260,13 +1268,13 @@ graph TB
         Input[large_file.cpp - 700 lines, 5000 tokens]
     end
 
-    subgraph "1. tree-sitter 파싱"
+    subgraph "(1) tree-sitter 파싱"
         Input --> Read[파일 읽기 - bytes]
         Read --> Parse[tree-sitter.parse - C++ Grammar]
         Parse --> AST[Abstract Syntax Tree]
     end
 
-    subgraph "2. AST 구조 예시"
+    subgraph "(2) AST 구조 예시"
         AST --> Root[root_node - translation_unit]
         Root --> Child1[preproc_include - #include iostream - line 1]
         Root --> Child2[preproc_include - #include vector - line 2]
@@ -1277,14 +1285,14 @@ graph TB
         Root --> Child7[function_definition - int main - lines 461-700]
     end
 
-    subgraph "3. 컨텍스트 추출"
+    subgraph "(3) 컨텍스트 추출"
         Child1 --> Context[File Context]
         Child2 --> Context
         Child3 --> Context
         Context --> ContextStr[#include iostream - #include vector - using namespace std]
     end
 
-    subgraph "4. Chunk 생성"
+    subgraph "(4) Chunk 생성"
         Child4 --> Chunk1[Chunk 1 - chunk_id - process:5-105 - context + code]
         Child5 --> Chunk2[Chunk 2 - chunk_id - DataProcessor:107-307 - context + code]
         Child6 --> Chunk3[Chunk 3 - chunk_id - analyze:309-459 - context + code]
@@ -1723,7 +1731,7 @@ classDiagram
 
 ```mermaid
 graph TB
-    subgraph "1. 플러그인 구현"
+    subgraph "(1) 플러그인 구현"
         Start[새 언어 지원 - Python]
         Start --> Impl[PythonPlugin 클래스]
 
@@ -1733,7 +1741,7 @@ graph TB
         Impl --> M4[should_analyze_file - Skip test_*.py, __init__]
     end
 
-    subgraph "2. Ground Truth 생성"
+    subgraph "(2) Ground Truth 생성"
         M3 --> GT[20개 Python 예제]
 
         GT --> GT1[type-safety - 5개 - None checks, type hints]
@@ -1743,13 +1751,13 @@ graph TB
         GT --> GT5[clean code - 3개 - negative examples]
     end
 
-    subgraph "3. 실험 실행"
+    subgraph "(3) 실험 실행"
         GT --> ExpConfig[experiments/configs/ - python_few_shot_5.yml]
         ExpConfig --> RunExp[python -m cli.main - experiment run]
         RunExp --> Metrics[MetricsCalculator - F1/Precision/Recall]
     end
 
-    subgraph "4. 프로덕션 사용"
+    subgraph "(4) 프로덕션 사용"
         Metrics --> Prod{F1 > 0.6?}
         Prod -->|Yes| UseProd[ProductionAnalyzer - plugin=PythonPlugin]
         Prod -->|No| Improve[Few-shot 예시 개선 - 다시 실험]
@@ -1757,7 +1765,7 @@ graph TB
         Improve --> GT
     end
 
-    subgraph "5. 완료"
+    subgraph "(5) 완료"
         UseProd --> Done[✅ Python 지원 완료 - python -m cli.main - analyze file script.py]
     end
 
@@ -1827,28 +1835,28 @@ graph TB
 
 ```mermaid
 graph TB
-    subgraph "1. 온프레미스 성공"
+    subgraph "(1) 온프레미스 성공"
         Success1[✅ 외부 API 없이 - 온프레미스 LLM 실행]
         Success1 --> S1_1[DGX-SPARK + Ollama]
         Success1 --> S1_2[DeepSeek-Coder 33B]
         Success1 --> S1_3[보안 요구사항 충족]
     end
 
-    subgraph "2. 실험 기반 개발"
+    subgraph "(2) 실험 기반 개발"
         Success2[✅ 체계적 실험으로 - 최적 기법 선택]
         Success2 --> S2_1[Ground Truth 20개]
         Success2 --> S2_2[5가지 기법 비교]
         Success2 --> S2_3[F1 - 0.498 → 0.634]
     end
 
-    subgraph "3. 프로덕션 도구"
+    subgraph "(3) 프로덕션 도구"
         Success3[✅ 실제 사용 가능한 - CLI 도구 완성]
         Success3 --> S3_1[파일/디렉토리/PR 분석]
         Success3 --> S3_2[700+ 라인 파일 지원]
         Success3 --> S3_3[병렬 처리 4x 빠름]
     end
 
-    subgraph "4. 확장 가능성"
+    subgraph "(4) 확장 가능성"
         Success4[✅ 플러그인 아키텍처로 - 다른 언어 확장 가능]
         Success4 --> S4_1[C++ Plugin 완성]
         Success4 --> S4_2[Python Plugin 준비]
@@ -1865,13 +1873,13 @@ graph TB
 
 ### 10.2 성능 지표
 
-| 지표: 목표: 달성: 비고 |
+| 지표 | 목표 | 달성 | 비고 |
 |------|------|------|------|
-| **F1 Score**: 0.6+: **0.615** (Few-shot-5): **0.634** (Hybrid): ✅ 목표 달성 |
-| **분석 속도**: < 10초: **8.15초** (Few-shot-5): ✅ 목표 달성 |
-| **대용량 파일**: 500+ 라인: **1000+ 라인**: ✅ 초과 달성 |
-| **병렬 처리**: 2x 빠름: **4x 빠름**: ✅ 초과 달성 |
-| **보안**: 온프레미스: **100% 내부 처리**: ✅ 완벽 달성 |
+| **F1 Score** | 0.6+ | **0.615** (Few-shot-5), **0.634** (Hybrid) | ✅ 목표 달성 |
+| **분석 속도** | < 10초 | **8.15초** (Few-shot-5) | ✅ 목표 달성 |
+| **대용량 파일** | 500+ 라인 | **1000+ 라인** | ✅ 초과 달성 |
+| **병렬 처리** | 2x 빠름 | **4x 빠름** | ✅ 초과 달성 |
+| **보안** | 온프레미스 | **100% 내부 처리** | ✅ 완벽 달성 |
 
 ---
 
@@ -1983,12 +1991,12 @@ graph LR
 - **F1 Score**: 0.615 (Few-shot-5), 0.634 (Hybrid)
 - **분석 속도**: 8초 (일반), 40초 (700줄 파일)
 - **병렬 처리**: 4x 속도 향상
-- **모델**: DeepSeek-Coder 33B (18GB)
+- **모델**: DeepSeek-Coder 33B (실사용 ~20GB)
 - **Ground Truth**: 20개 C++ 예제
 
 ### 기술 스택
 
-- **하드웨어**: DGX-SPARK GPU 서버
+- **하드웨어**: DGX-SPARK (RAM 128GB, GPU 24GB VRAM)
 - **LLM**: Ollama + DeepSeek-Coder 33B
 - **프레임워크**: Python 3.12 + Pydantic + tree-sitter
 - **아키텍처**: 3-Tier (Framework → Plugins → Applications)

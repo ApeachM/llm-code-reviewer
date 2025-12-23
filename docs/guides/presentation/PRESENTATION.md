@@ -18,6 +18,53 @@ DGX-SPARK + Ollama + DeepSeek-Coder 33B
 
 ---
 
+## 📌 한눈에 보는 요약
+
+### 핵심 흐름
+
+```mermaid
+graph TB
+    subgraph Problem["문제"]
+        P1["보안 환경 → 외부 API 사용 불가"]
+        P2["로컬 LLM → 긴 인풋에서 퀄리티 급락"]
+    end
+
+    subgraph Solution["해결책: Multi-Stage Pipeline"]
+        S1[Chunking] --> S2[Workers]
+        S2 --> S3[Merge]
+        S3 --> S4[Result]
+    end
+
+    subgraph Result["성과"]
+        R1["F1: 0.526 → 0.634"]
+        R2["목표: F1 0.80+"]
+    end
+
+    Problem --> Solution --> Result
+
+    style Problem fill:#c62828,color:#fff
+    style Solution fill:#1976d2,color:#fff
+    style Result fill:#2e7d32,color:#fff
+```
+
+### 발표 구조
+
+| Part | 섹션 | 질문 | 핵심 내용 | 시간 |
+|------|------|------|----------|------|
+| **1** | 1~2 | 왜? 무엇? | 배경 + 아키텍처 | 10분 |
+| **2** | 3~5 | 어떻게? | 오케스트레이션 + 프롬프팅 + 청킹 | 15분 |
+| **3** | 6~7 | 결과? 다음? | 실험 + 향후 계획 | 10분 |
+
+### 핵심 수치
+
+| 지표 | 현재 | 목표 |
+|------|------|------|
+| **F1 Score** | 0.634 | 0.80+ |
+| **분석 속도** | 8초 (일반) | - |
+| **병렬 효과** | 4x 향상 | - |
+
+---
+
 ## 1. 프로젝트 배경 및 동기
 
 이 프로젝트는 **"보안이 중요한 환경에서 어떻게 LLM 기반 코드 리뷰를 할 수 있을까?"**라는 질문에서 시작되었습니다.
@@ -463,119 +510,6 @@ graph LR
 
 ---
 
-### 3.4 향후 개선: 스마트 오케스트레이션
-
-> **"적응형(Adaptive)"이란?**
-> 현재는 모든 상황에 **동일한 방식**을 적용합니다. 적응형은 **상황에 따라 다른 전략**을 자동 선택하는 것입니다.
-
-#### 3.4.1 적응형 기법 선택
-
-현재는 모든 파일에 동일한 기법(Few-shot-5)을 사용합니다. 향후에는 **파일 특성에 따라 기법을 자동 선택**할 수 있습니다.
-
-**왜 적응형이 필요한가?**
-- **Few-shot-5**: memory-safety에 강하지만 modern-cpp는 못 잡음 (F1=0.000)
-- **Chain-of-Thought**: modern-cpp에 강함 (F1=0.727) 하지만 느림
-- **Zero-shot**: 빠르지만 정확도 낮음
-
-→ 코드 특성을 보고 **최적의 기법을 자동 선택**하면 정확도와 속도 모두 개선
-
-```mermaid
-graph TB
-    subgraph "적응형 기법 선택"
-        Input[입력 코드] --> Analyze[코드 특성 분석]
-
-        Analyze --> Check1{포인터/메모리 코드?}
-        Check1 -->|Yes| FS[Few-shot-5 - memory-safety 특화]
-
-        Analyze --> Check2{Modern C++ 패턴?}
-        Check2 -->|Yes| Hybrid[Hybrid - CoT로 modern-cpp 탐지]
-
-        Analyze --> Check3{단순 유틸리티?}
-        Check3 -->|Yes| ZS[Zero-shot - 빠른 분석]
-    end
-
-    style FS fill:#388e3c,color:#fff
-    style Hybrid fill:#7b1fa2,color:#fff
-    style ZS fill:#546e7a,color:#fff
-```
-
-위 다이어그램은 **적응형 기법 선택 전략**을 보여줍니다:
-- 메모리 관련 코드 → Few-shot-5 (memory-safety 예시 포함)
-- Modern C++ 패턴 → Hybrid (CoT로 상세 분석)
-- 단순 코드 → Zero-shot (빠른 처리)
-
-#### 3.4.2 적응형 재시도 전략
-
-로컬 LLM은 출력이 **불안정**할 수 있습니다. 강건한 에러 처리가 필수입니다.
-
-**현재 문제**: 실패하면 **같은 방식으로 재시도** → 같은 에러 반복
-**적응형 해결**: 에러 **유형을 분석**하고 **다른 전략**으로 재시도
-
-| 에러 유형 | 현재 대응 | 적응형 대응 |
-|----------|----------|------------|
-| JSON 파싱 실패 | 같은 프롬프트 재시도 | "반드시 JSON 형식으로 출력하세요" 강조 |
-| 타임아웃 | 같은 크기로 재시도 | 청크 크기를 200→100줄로 축소 |
-| 할루시네이션 | 같은 설정 재시도 | temperature 0.7→0.3으로 낮춤 |
-
-```mermaid
-graph TB
-
-    subgraph "향후: 적응형 재시도"
-        F1[LLM 호출] --> F2{성공?}
-        F2 -->|No| F3[에러 유형 분석]
-        F3 --> F4{JSON 파싱 실패?}
-        F4 -->|Yes| F5[출력 형식 강조 프롬프트]
-        F3 --> F6{타임아웃?}
-        F6 -->|Yes| F7[청크 크기 축소]
-        F3 --> F8{할루시네이션?}
-        F8 -->|Yes| F9[temperature 낮춤]
-        F5 --> F1
-        F7 --> F1
-        F9 --> F1
-        F2 -->|Yes| F10[결과 반환]
-    end
-    subgraph "현재: 단순 재시도"
-        C1[LLM 호출] --> C2{성공?}
-        C2 -->|No| C3[동일 프롬프트로 재시도]
-        C3 --> C2
-        C2 -->|Yes| C4[결과 반환]
-    end
-
-
-    style C3 fill:#546e7a,color:#fff
-    style F5 fill:#1976d2,color:#fff
-    style F7 fill:#7b1fa2,color:#fff
-    style F9 fill:#388e3c,color:#fff
-```
-
-위 다이어그램은 **에러 복구 전략의 현재와 향후**를 비교합니다:
-- **현재**: 단순 재시도 (동일 프롬프트)
-- **향후**: 에러 유형별 적응형 대응
-  - JSON 파싱 실패 → 출력 형식 강조
-  - 타임아웃 → 청크 크기 축소
-  - 할루시네이션 → temperature 조정
-
-#### 3.4.3 결과 캐싱
-
-동일 파일을 반복 분석할 때 **캐싱**으로 속도를 크게 개선할 수 있습니다.
-
-```mermaid
-graph LR
-    subgraph "캐싱 전략"
-        Input[입력 코드] --> Hash[코드 해시 생성]
-        Hash --> Check{캐시 존재?}
-        Check -->|Yes| Return[캐시된 결과 반환 - 0.1초]
-        Check -->|No| Analyze[LLM 분석 - 8초]
-        Analyze --> Store[결과 캐싱]
-        Store --> Return2[결과 반환]
-    end
-
-    style Return fill:#2e7d32,color:#fff
-    style Analyze fill:#e65100,color:#fff
-```
-
----
-
 ## 4. 프롬프팅 전략
 
 LLM의 성능은 **어떻게 질문하느냐**에 크게 좌우됩니다. 5가지 프롬프팅 기법을 실험하여 최적 전략을 찾았습니다.
@@ -645,56 +579,6 @@ graph TB
 ```
 
 **트레이드오프**: 4배 느리지만 최고 정확도 → 중요한 PR에만 사용 권장
-
----
-
-### 4.3 향후 개선: 프롬프팅 최적화
-
-#### 4.3.1 Dynamic Few-shot (RAG 기반)
-
-현재는 **고정된 5개 예시**를 사용합니다. 향후에는 입력 코드와 **가장 유사한 예시**를 동적으로 선택할 수 있습니다.
-
-```mermaid
-graph TB
-    subgraph "Dynamic Few-shot"
-        Input[입력 코드] --> Embed[코드 임베딩]
-
-        subgraph "Vector DB"
-            DB[(과거 버그 사례)]
-        end
-
-        Embed --> Search[유사도 검색]
-        DB --> Search
-        Search --> TopK[Top-5 유사 사례]
-        TopK --> Prompt[동적 Few-shot 프롬프트]
-        Input --> Prompt
-        Prompt --> LLM[LLM 분석]
-    end
-
-    style DB fill:#1976d2,color:#fff
-    style Search fill:#7b1fa2,color:#fff
-    style Prompt fill:#388e3c,color:#fff
-```
-
-**예상 효과**: 입력 코드와 관련 있는 예시로 정확도 +10-15% 향상
-
-#### 4.3.2 Self-Critique (자기 비평)
-
-LLM이 자신의 결과를 **비평**하여 False Positive를 줄입니다.
-
-```mermaid
-graph LR
-    subgraph "Self-Critique"
-        P1[Pass 1: 버그 탐지] --> Issues[이슈 목록]
-        Issues --> P2[Pass 2: 각 이슈 검증]
-        P2 --> Q[정말 버그인가?]
-        Q --> Keep[✅ 확실한 버그 유지]
-        Q --> Remove[❌ 불확실한 이슈 제거]
-    end
-
-    style Keep fill:#2e7d32,color:#fff
-    style Remove fill:#c62828,color:#fff
-```
 
 ---
 
@@ -818,147 +702,6 @@ graph TB
 **성능 향상**:
 - 순차 처리: 4 chunks × 8초 = **32초**
 - 병렬 처리 (4 workers): **~10초** (3.2배 빠름)
-
----
-
-### 5.4 향후 개선: Semantic 청킹
-
-현재 tree-sitter는 **Syntax만** 파싱합니다. 향후 **clangd**를 활용하면 더 스마트한 청킹이 가능합니다.
-
-#### 5.4.1 tree-sitter vs clangd 비교
-
-| 특성 | tree-sitter (현재) | clangd (향후) |
-|------|-------------------|---------------|
-| **속도** | 10ms ⭐ | 1-2초 |
-| **의존성** | 없음 ⭐ | compile_commands.json 필요 |
-| **정보 수준** | Syntax only | Full Semantic |
-| **타입 정보** | ❌ | ✅ |
-| **함수 호출 관계** | ❌ | ✅ |
-| **Include 해석** | ❌ | ✅ |
-
-```mermaid
-graph TB
-
-    subgraph "향후: clangd"
-        CL_In[소스 코드] --> CL_Parse[Semantic 분석]
-        CL_Parse --> CL_Type[타입 정보]
-        CL_Parse --> CL_Call[함수 호출 관계]
-        CL_Parse --> CL_Dep[의존성 분석]
-
-        CL_Type --> CL_Smart[스마트 청킹]
-        CL_Call --> CL_Smart
-        CL_Dep --> CL_Smart
-    end
-    
-    subgraph "현재: tree-sitter"
-        TS_In[소스 코드] --> TS_Parse[Syntax 파싱]
-        TS_Parse --> TS_Out[함수 경계만 파악]
-    end
-
-
-    style TS_Parse fill:#1976d2,color:#fff
-    style CL_Parse fill:#7b1fa2,color:#fff
-    style CL_Smart fill:#2e7d32,color:#fff
-```
-
-위 다이어그램은 **tree-sitter와 clangd의 차이**를 보여줍니다:
-- **tree-sitter**: 빠르지만 Syntax 정보만
-- **clangd**: 느리지만 타입, 호출 관계, 의존성까지 파악
-
-#### 5.4.2 clangd 활용 시나리오
-
-```mermaid
-graph TB
-    subgraph "Semantic 청킹 이점"
-        S1[관련 함수 그룹핑]
-        S1 --> S1_Ex["process()와 helper() - 함께 청킹"]
-
-        S2[타입 기반 컨텍스트]
-        S2 --> S2_Ex["DataProcessor 클래스 - 사용하는 함수들과 함께"]
-
-        S3[의존성 인식]
-        S3 --> S3_Ex["#include 내용 - 필요시 포함"]
-    end
-
-    style S1 fill:#1976d2,color:#fff
-    style S2 fill:#7b1fa2,color:#fff
-    style S3 fill:#388e3c,color:#fff
-```
-
-**예상 효과**:
-- 관련 코드가 함께 분석되어 **컨텍스트 손실 감소**
-- False Negative **20-30% 감소** 예상
-- 단, **빌드 환경 필요** (compile_commands.json)
-
-#### 5.4.3 하이브리드 접근법 (제안)
-
-```mermaid
-graph TB
-    subgraph "하이브리드 청킹 전략"
-        Input[소스 코드] --> Check{빌드 환경 있음?}
-
-        Check -->|Yes| Clangd[clangd Semantic 분석]
-        Check -->|No| TreeSitter[tree-sitter Syntax 분석]
-
-        Clangd --> Smart[스마트 청킹 - 관련 함수 그룹]
-        TreeSitter --> Basic[기본 청킹 - 함수 단위]
-
-        Smart --> Analyze[분석]
-        Basic --> Analyze
-    end
-
-    style Clangd fill:#7b1fa2,color:#fff
-    style TreeSitter fill:#1976d2,color:#fff
-    style Smart fill:#2e7d32,color:#fff
-```
-
-**제안**: 빌드 환경이 있으면 clangd, 없으면 tree-sitter로 **폴백**
-
----
-
-### 5.5 향후 개선: 청킹 최적화
-
-#### 5.5.1 적응형 청크 크기
-
-```mermaid
-graph LR
-    subgraph "적응형 청크 크기"
-        Code[코드 복잡도 분석] --> Simple{단순 코드?}
-        Simple -->|Yes| Large[큰 청크 - 300줄]
-        Simple -->|No| Small[작은 청크 - 100줄]
-    end
-
-    style Large fill:#388e3c,color:#fff
-    style Small fill:#e65100,color:#fff
-```
-
-- **단순 코드**: 큰 청크로 오버헤드 감소
-- **복잡한 코드**: 작은 청크로 정확도 향상
-
-#### 5.5.2 컨텍스트 윈도우 최적화
-
-```mermaid
-graph TB
-    subgraph "컨텍스트 윈도우"
-        Func[분석 대상 함수]
-
-        Func --> Before[이전 함수 시그니처]
-        Func --> After[다음 함수 시그니처]
-        Func --> Deps[호출하는 함수 시그니처]
-
-        Before --> Context[확장된 컨텍스트]
-        After --> Context
-        Deps --> Context
-
-        Context --> Better[더 정확한 분석]
-    end
-
-    style Func fill:#1976d2,color:#fff
-    style Context fill:#7b1fa2,color:#fff
-    style Better fill:#2e7d32,color:#fff
-```
-
-**아이디어**: 분석 대상 함수뿐 아니라 **관련 함수 시그니처**도 컨텍스트에 포함
 
 ---
 
@@ -1145,206 +888,9 @@ graph TB
 
 ---
 
-### 7.5 핵심 문제 해결을 위한 추가 기술
+### 7.5 이상적인 파이프라인 설계
 
-> **핵심 문제**: 로컬 LLM은 **인풋이 조금만 길어져도 출력 퀄리티가 급격히 저하**됩니다.
->
-> 현재 구현(AST 청킹 + 병렬 Workers + 규칙 병합)은 **기본 뼈대**입니다.
-> 아래 기술들을 추가하면 이 문제를 더욱 효과적으로 극복할 수 있습니다.
-
----
-
-#### 7.5.1 Hierarchical Summarization (계층적 요약)
-
-**문제**: 각 Worker는 자기 chunk만 봄 → **전체 파일이 뭘 하는지 모름**
-
-**해결**: 각 chunk를 먼저 **1-2줄로 요약** → 분석 시 다른 chunk 요약을 컨텍스트로 제공
-
-```mermaid
-graph TB
-    subgraph "Phase 1: 요약 생성"
-        C1[Chunk 1] --> S1["Summary: 메모리 할당"]
-        C2[Chunk 2] --> S2["Summary: 데이터 처리"]
-        C3[Chunk 3] --> S3["Summary: 메모리 해제"]
-    end
-
-    subgraph "Phase 2: 요약과 함께 분석"
-        S1 --> Context[전체 요약 컨텍스트]
-        S2 --> Context
-        S3 --> Context
-        Context --> W1[Worker 1]
-        Context --> W2[Worker 2]
-        Context --> W3[Worker 3]
-        C1 --> W1
-        C2 --> W2
-        C3 --> W3
-    end
-
-    style Context fill:#388e3c,color:#fff
-    style S1 fill:#1976d2,color:#fff
-    style S2 fill:#1976d2,color:#fff
-    style S3 fill:#1976d2,color:#fff
-```
-
-**Worker 프롬프트 예시**:
-```
-## 전체 파일 요약:
-- Chunk 1: 메모리 할당 (malloc)
-- Chunk 2: 데이터 처리
-- Chunk 3: 메모리 해제 (free)  ← 이걸 알면 "leak 아니네" 판단 가능
-
-## 분석 대상 (Chunk 1):
-void* allocate() { return malloc(100); }
-```
-
-**효과**: Worker가 **전체 맥락을 알고** 분석 → Cross-chunk False Positive 50% 감소
-
----
-
-#### 7.5.2 Sliding Window with Overlap (겹침 청킹)
-
-**문제**: chunk 경계에서 이슈 놓침 (malloc이 Chunk 1, free가 Chunk 2에 있는 경우)
-
-**해결**: chunk를 **겹치게** 분할 → 경계 이슈를 최소 한 Worker가 봄
-
-```
-현재:   [Chunk 1: 1-100] [Chunk 2: 101-200] [Chunk 3: 201-300]
-                    ↑ 경계에서 이슈 놓침
-
-개선:   [Chunk 1: 1-120] [Chunk 2: 80-220] [Chunk 3: 180-300]
-                    ↑ 20줄씩 겹침 → 경계 이슈 잡힘
-```
-
-```mermaid
-graph LR
-    subgraph "현재: 경계 분리"
-        A1[1-100] --> A2[101-200]
-        A2 --> A3[201-300]
-    end
-
-    subgraph "개선: 겹침 청킹"
-        B1[1-120] --> B2[80-220]
-        B2 --> B3[180-300]
-    end
-
-    style A2 fill:#c62828,color:#fff
-    style B2 fill:#388e3c,color:#fff
-```
-
-**효과**: 경계 이슈 **80% 탐지** 가능
-**비용**: 분석량 20-30% 증가 (trade-off)
-
----
-
-#### 7.5.3 Two-Phase Analysis (2단계 분석)
-
-**문제**: 모든 코드를 정밀 분석 → 느리고 토큰 낭비
-
-**해결**: **1단계에서 의심 영역만 찾고**, 2단계에서 정밀 분석
-
-```mermaid
-graph LR
-    subgraph "Phase 1: Quick Scan"
-        Code[전체 코드] --> Quick[Zero-shot - 빠른 스캔]
-        Quick --> Areas["의심 영역: lines 45-60, 120-140"]
-    end
-
-    subgraph "Phase 2: Deep Analysis"
-        Areas --> Deep[Few-shot + CoT - 정밀 분석]
-        Deep --> Result[최종 결과]
-    end
-
-    style Quick fill:#1976d2,color:#fff
-    style Deep fill:#c62828,color:#fff
-```
-
-**효과**: 토큰 사용량 **50-70% 감소**, 속도 향상
-**적용**: 대용량 파일(500줄+)에서 특히 유용
-
----
-
-#### 7.5.4 Static + LLM Hybrid (정적 분석 + LLM 결합)
-
-**문제**: LLM만으로 모든 버그 탐지 → 느리고 때로는 부정확
-
-**해결**: **확실한 버그는 정적 분석기**로, **맥락 필요한 버그는 LLM**으로
-
-```mermaid
-graph TB
-    subgraph "Static Analysis (빠름, 확실)"
-        Code[코드] --> Static[clang-tidy]
-        Static --> S1[null deref]
-        Static --> S2[buffer overflow]
-        Static --> S3[unused variable]
-    end
-
-    subgraph "LLM Analysis (맥락 이해)"
-        Code --> LLM[LLM 분석]
-        LLM --> L1[logic error]
-        LLM --> L2[design issue]
-        LLM --> L3[security flaw]
-    end
-
-    subgraph "결과 통합"
-        S1 --> Merge[통합 + 중복 제거]
-        S2 --> Merge
-        S3 --> Merge
-        L1 --> Merge
-        L2 --> Merge
-        L3 --> Merge
-        Merge --> Final[최종 결과]
-    end
-
-    style Static fill:#2e7d32,color:#fff
-    style LLM fill:#7b1fa2,color:#fff
-    style Merge fill:#1976d2,color:#fff
-```
-
-| 분석기 | 담당 | 장점 |
-|--------|------|------|
-| **clang-tidy** | null deref, modernize, bugprone | Clang AST 기반, 정확도 높음 |
-| **LLM** | 로직 오류, 설계 문제, 보안 | 맥락 이해, 복잡한 패턴 |
-
-> **왜 clang-tidy?** CMake 프로젝트는 `compile_commands.json`이 있어서 clang-tidy가 **Full Semantic 분석** 가능
-
-**효과**: 정확도 **20%↑**, 속도 **30%↑** (LLM 부하 감소)
-
----
-
-#### 7.5.5 Function Signature Context (함수 시그니처 컨텍스트)
-
-**문제**: Worker가 다른 함수의 존재를 모름 → 관계 파악 불가
-
-**해결**: 분석 대상 외에 **다른 함수들의 시그니처**를 컨텍스트로 제공
-
-```
-현재 Worker가 보는 것:
-┌─────────────────────────────────┐
-│ void process(Data* d) {        │
-│     // 100줄 코드               │
-│ }                               │
-└─────────────────────────────────┘
-
-개선된 Worker가 보는 것:
-┌─────────────────────────────────┐
-│ // 이 파일의 다른 함수들:        │
-│ // - Data* createData()        │  ← d가 어디서 오는지 힌트
-│ // - void deleteData(Data*)    │  ← leak 아닌지 힌트
-│ // - bool validateData(Data*)  │
-│                                 │
-│ void process(Data* d) {        │
-│     // 100줄 코드               │
-│ }                               │
-└─────────────────────────────────┘
-```
-
-**효과**: 전체 코드 없이도 **관계 파악** 가능 → 맥락 이해도 **30%↑**
-
----
-
-#### 7.5.6 제안: 개선된 파이프라인
-
-위 기술들을 조합한 **이상적인 파이프라인**:
+> 현재 구현은 **기본 뼈대**입니다. 아래는 6가지 기술을 적용한 **이상적인 파이프라인**입니다.
 
 ```mermaid
 graph TB
@@ -1363,7 +909,7 @@ graph TB
         CN --> SumN[Summary N]
     end
 
-    subgraph "Stage 2: Context-Aware Analysis"
+    subgraph "Stage 2: Context-Aware Workers"
         Sum1 --> Context[전체 요약 + 함수 시그니처]
         Sum2 --> Context
         SumN --> Context
@@ -1378,7 +924,7 @@ graph TB
         WN --> RN[Result N]
     end
 
-    subgraph "Stage 3: Intelligent Aggregation"
+    subgraph "Stage 3: Aggregator LLM"
         R1 --> Agg[Aggregator LLM]
         R2 --> Agg
         RN --> Agg
@@ -1392,31 +938,33 @@ graph TB
     style Final fill:#1976d2,color:#fff
 ```
 
-**4단계 파이프라인 요약**:
+**현재 vs 이상적 비교**:
 
-| Stage | 이름 | 역할 | 현재 구현 |
-|-------|------|------|----------|
-| 0 | Static Pre-scan | 확실한 버그 빠르게 탐지 | ❌ |
-| 1 | Chunking + Summarization | 겹침 청킹 + 각 chunk 요약 | 부분 (겹침/요약 없음) |
-| 2 | Context-Aware Analysis | 전체 맥락과 함께 분석 | ❌ |
-| 3 | Intelligent Aggregation | LLM으로 결과 종합 | ❌ (규칙 기반) |
-
----
-
-#### 7.5.7 기술별 우선순위
-
-| 순위 | 기술 | 구현 난이도 | 예상 효과 | 권장 시기 |
-|------|------|------------|----------|----------|
-| 1 | **Aggregator LLM** | 중 | 정확도 +25% | Phase 6 |
-| 2 | **Sliding Window Overlap** | 낮음 | 경계 이슈 80%↓ | Phase 6 |
-| 3 | **Function Signature Context** | 낮음 | 맥락 +30% | Phase 7 |
-| 4 | **Hierarchical Summarization** | 중 | Cross-chunk 50%↓ | Phase 7 |
-| 5 | **Static + LLM Hybrid** | 중 | 속도 30%↑ | Phase 8 |
-| 6 | **Two-Phase Analysis** | 중 | 토큰 50%↓ | Phase 9 |
+| Stage | 이상적 구조 | 현재 구현 | Gap |
+|-------|-----------|----------|-----|
+| 0 | clang-tidy Pre-scan | ❌ 없음 | 추가 필요 |
+| 1 | 겹침 청킹 + 요약 | 기본 청킹만 | 겹침/요약 추가 |
+| 2 | 맥락 포함 Workers | 맥락 없음 | 시그니처 추가 |
+| 3 | Aggregator LLM | 규칙 병합 | LLM으로 대체 |
 
 ---
 
-### 7.6 기대 효과 요약
+### 7.6 향후 적용 기술 요약
+
+| 순위 | 기술 | 문제 해결 | 효과 |
+|------|------|----------|------|
+| 1 | **Aggregator LLM** | Worker 결과를 LLM이 종합 | 정확도 +25% |
+| 2 | **Sliding Window Overlap** | chunk 겹침으로 경계 이슈 탐지 | 경계 이슈 80%↓ |
+| 3 | **Function Signature Context** | 다른 함수 시그니처 제공 | 맥락 +30% |
+| 4 | **Hierarchical Summarization** | chunk 요약 공유 | Cross-chunk 50%↓ |
+| 5 | **clang-tidy Hybrid** | 정적 분석 + LLM 결합 | 속도 30%↑ |
+| 6 | **Two-Phase Analysis** | 의심 영역만 정밀 분석 | 토큰 50%↓ |
+
+> 📎 각 기술의 상세 설명은 **PRESENTATION_APPENDIX.md** 참조
+
+---
+
+### 7.7 기대 효과 요약
 
 | 영역 | 현재 | 목표 | 개선율 |
 |------|------|------|--------|
@@ -1433,161 +981,31 @@ graph TB
 
 ---
 
-## 📊 발표 요약
+## 📊 발표 마무리
 
-### 핵심 메시지
-
-1. **온프레미스 LLM 가능**: 보안 환경에서도 LLM 코드 리뷰 가능
-2. **핵심 문제**: 로컬 LLM은 **긴 인풋 = 낮은 퀄리티** → Multi-Stage Pipeline 필수
-3. **해결 전략**: Chunking → LLM Workers → (향후) Aggregator LLM
-4. **실험 기반 개발**: Ground Truth로 객관적 검증, F1 0.526 → 0.634
-
-### 핵심 수치
-
-- **F1 Score**: 0.615 (Few-shot-5), 0.634 (Hybrid)
-- **분석 속도**: 8초 (일반), 40초 (700줄 파일)
-- **병렬 처리**: 4x 속도 향상
-
-### 향후 최우선 과제
-
-> **Aggregator LLM 구현**: 현재 규칙 기반 ResultMerger를 LLM으로 대체하여 Cross-chunk 이슈 탐지 + False Positive 필터링
-
-### 향후 추가 과제 (우선순위순)
-
-1. **Aggregator LLM**: 규칙 기반 → LLM 기반 결과 종합
-2. **Sliding Window Overlap**: 겹침 청킹으로 경계 이슈 탐지
-3. **Function Signature Context**: 다른 함수 시그니처로 맥락 제공
-4. **Hierarchical Summarization**: chunk 요약으로 전체 맥락 공유
-5. **Static + LLM Hybrid**: clang-tidy와 결합하여 정확도/속도 향상
-
----
-
-## 📌 전체 구조 한눈에 보기
-
-### 문서 구조 Overview
-
-```mermaid
-graph TB
-    subgraph "1️⃣ 왜? - 배경"
-        S1[1. 프로젝트 배경]
-        S1 --> P1[보안 환경에서 LLM 사용 불가]
-        S1 --> P2[온프레미스 LLM 필요]
-        S1 --> P3[핵심 문제: 긴 인풋 = 낮은 퀄리티]
-    end
-
-    subgraph "2️⃣ 무엇? - 설계"
-        S2[2. 시스템 아키텍처]
-        S3[3. 오케스트레이션]
-        S2 --> D1[3-Tier 구조]
-        S3 --> D2[Multi-Stage Pipeline]
-        S3 --> D3[Aggregator LLM 개념]
-    end
-
-    subgraph "3️⃣ 어떻게? - 구현"
-        S4[4. 프롬프팅 전략]
-        S5[5. AST 기반 청킹]
-        S4 --> I1[Zero-shot → Hybrid 진화]
-        S5 --> I2[tree-sitter 파싱]
-        S5 --> I3[병렬 Workers]
-    end
-
-    subgraph "4️⃣ 검증"
-        S6[6. 실험 및 검증]
-        S6 --> V1[Ground Truth 20개]
-        S6 --> V2[F1: 0.526 → 0.634]
-    end
-
-    subgraph "5️⃣ 미래"
-        S7[7. 향후 계획]
-        S7 --> F1[Aggregator LLM]
-        S7 --> F2[6가지 추가 기술]
-        S7 --> F3[목표 F1: 0.80+]
-    end
-
-    S1 --> S2 --> S4 --> S6 --> S7
-    S2 --> S3 --> S5
-
-    style S1 fill:#1976d2,color:#fff
-    style S3 fill:#7b1fa2,color:#fff
-    style S7 fill:#388e3c,color:#fff
-```
-
----
-
-### 핵심 흐름: 문제 → 해결 → 검증 → 개선
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│  문제 정의                                                               │
-│  ┌─────────────────────────────────────────────────────────────────────┐│
-│  │ • 보안 환경 → 외부 API 사용 불가                                      ││
-│  │ • 로컬 LLM → 긴 인풋에서 퀄리티 급락                                   ││
-│  └─────────────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────────────┘
-                                    ↓
-┌─────────────────────────────────────────────────────────────────────────┐
-│  현재 해결책                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐│
-│  │ [청킹] AST로 작은 단위 분할                                           ││
-│  │ [분석] 병렬 LLM Workers                                              ││
-│  │ [병합] 규칙 기반 ResultMerger ← 한계점                                ││
-│  │ [프롬프팅] Few-shot-5 (F1 0.615)                                     ││
-│  └─────────────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────────────┘
-                                    ↓
-┌─────────────────────────────────────────────────────────────────────────┐
-│  검증 결과                                                               │
-│  ┌─────────────────────────────────────────────────────────────────────┐│
-│  │ • Zero-shot → Few-shot-5 → Hybrid: F1 0.526 → 0.615 → 0.634        ││
-│  │ • 병렬 처리: 4x 속도 향상                                             ││
-│  │ • 한계: Cross-chunk 이슈 탐지 불가, False Positive 필터링 없음         ││
-│  └─────────────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────────────┘
-                                    ↓
-┌─────────────────────────────────────────────────────────────────────────┐
-│  향후 개선 (6가지 기술)                                                   │
-│  ┌─────────────────────────────────────────────────────────────────────┐│
-│  │ 1. Aggregator LLM - 결과를 LLM이 종합                                 ││
-│  │ 2. Sliding Window - 겹침 청킹으로 경계 이슈 탐지                        ││
-│  │ 3. Hierarchical Summary - chunk 요약으로 맥락 공유                    ││
-│  │ 4. Function Signature Context - 다른 함수 시그니처 제공                ││
-│  │ 5. Static + LLM Hybrid - clang-tidy와 결합                            ││
-│  │ 6. Two-Phase Analysis - 의심 영역만 정밀 분석                          ││
-│  └─────────────────────────────────────────────────────────────────────┘│
-│  목표: F1 0.634 → 0.80+                                                 │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-### 섹션별 핵심 내용 요약
-
-| 섹션 | 주제 | 핵심 내용 | 키워드 |
-|------|------|----------|--------|
-| **1** | 배경 | 보안 환경에서 LLM 사용 제약, 온프레미스 필요성 | DGX-SPARK, Ollama, DeepSeek |
-| **2** | 아키텍처 | 3-Tier 구조 (CLI → Plugin → Framework) | 모듈화, 확장성 |
-| **3** | 오케스트레이션 | Multi-Stage Pipeline, Aggregator LLM 개념 | Cross-chunk, 적응형 |
-| **4** | 프롬프팅 | 5가지 기법 비교, Hybrid가 최고 (F1 0.634) | Few-shot, CoT, Hybrid |
-| **5** | 청킹 | tree-sitter AST 파싱, 병렬 처리 | 함수 단위, 4 Workers |
-| **6** | 실험 | Ground Truth 20개, F1 0.526→0.634 | Precision, Recall |
-| **7** | 향후 | 6가지 추가 기술, 목표 F1 0.80+ | Aggregator, Overlap |
-
----
-
-### 발표 1분 요약 스크립트
+### 1분 요약
 
 > **"이 프로젝트는 보안 환경에서 LLM 코드 리뷰를 가능하게 합니다.**
 >
 > **문제**: 외부 API 사용 불가 + 로컬 LLM은 긴 인풋에서 퀄리티 급락
 >
-> **해결**: AST 청킹으로 작은 단위 분할 → 병렬 LLM 분석 → 결과 병합
+> **해결**: AST 청킹 → 병렬 LLM Workers → 결과 병합
 >
-> **성과**: F1 0.526에서 0.634로 20% 향상 (실험 기반 검증)
+> **성과**: F1 0.526 → 0.634 (20%↑)
 >
-> **향후**: Aggregator LLM, 겹침 청킹 등 6가지 기술로 F1 0.80+ 목표"
+> **향후**: Aggregator LLM 등 6가지 기술로 F1 0.80+ 목표"
 
----
+### 핵심 수치
 
-**발표 종료**
+| 지표 | 현재 | 목표 |
+|------|------|------|
+| F1 Score | 0.634 | 0.80+ |
+| 분석 속도 | 8초 | - |
+| 병렬 효과 | 4x | - |
 
-질문 환영합니다!
+### 향후 핵심 과제
+
+1. **Aggregator LLM** - Worker 결과를 LLM이 종합
+2. **Sliding Window** - 겹침 청킹으로 경계 이슈 탐지
+3. **clang-tidy Hybrid** - 정적 분석과 LLM 결합
+

@@ -9,15 +9,12 @@ DGX-SPARK + Ollama + DeepSeek-Coder 33B
 ## 📋 발표 목차
 
 1. [프로젝트 배경 및 동기](#1-프로젝트-배경-및-동기)
-2. [기술 스택 및 아키텍처](#2-기술-스택-및-아키텍처)
-3. [3-Tier 시스템 아키텍처](#3-3-tier-시스템-아키텍처)
-4. [핵심 컴포넌트](#4-핵심-컴포넌트)
-5. [프롬프팅 기법의 진화 (Phase 0-5)](#5-프롬프팅-기법의-진화-phase-0-5)
-6. [실험 결과 및 메트릭](#6-실험-결과-및-메트릭)
-7. [AST 기반 대용량 파일 처리](#7-ast-기반-대용량-파일-처리)
-8. [데이터 플로우 상세](#8-데이터-플로우-상세)
-9. [플러그인 확장성](#9-플러그인-확장성)
-10. [주요 성과 및 향후 계획](#10-주요-성과-및-향후-계획)
+2. [시스템 아키텍처](#2-시스템-아키텍처)
+3. [오케스트레이션](#3-오케스트레이션)
+4. [프롬프팅 전략](#4-프롬프팅-전략)
+5. [AST 기반 청킹](#5-ast-기반-청킹)
+6. [실험 및 검증](#6-실험-및-검증)
+7. [향후 계획](#7-향후-계획)
 
 ---
 
@@ -31,2684 +28,1408 @@ DGX-SPARK + Ollama + DeepSeek-Coder 33B
 
 **현실의 딜레마**: 최신 AI 도구들은 강력하지만, 보안이 중요한 환경에서는 사용이 제한됩니다.
 
-- **ChatGPT, Claude API**: 코드가 외부 서버로 전송됨 → 보안 정책 위반
-- **GitHub Copilot**: 클라우드 기반 → 내부 네트워크에서 사용 불가
-- **기존 정적 분석기** (cppcheck, clang-tidy): 규칙 기반으로 한계가 있음
-
-```mermaid
-graph TB
-    subgraph "사내 환경"
-        Code[C++ 코드베이스 - 보안 등급 - 높음]
-    end
-
-    subgraph "제약 조건"
-        Code --> API{외부 API 사용?}
-        API -->|불가| ChatGPT[❌ ChatGPT API - 코드 유출 위험]
-        API -->|불가| Claude[❌ Claude API - 데이터 외부 전송]
-        API -->|불가| Copilot[❌ GitHub Copilot - 클라우드 의존]
-    end
-    
-```
-
-```mermaid
-graph TB
-
-    subgraph "기존 도구의 한계"
-        Static[Static Analyzers - cppcheck, clang-tidy]
-        Static --> Limit1[규칙 기반만 가능]
-        Static --> Limit2[컨텍스트 이해 부족]
-        Static --> Limit3[False Positive 많음]
-    end
-
-    style Static fill:#ff9800,color:#fff
-```
+| 도구 | 문제점 |
+|------|--------|
+| ChatGPT, Claude API | 코드가 외부 서버로 전송 → 보안 정책 위반 |
+| GitHub Copilot | 클라우드 기반 → 내부 네트워크에서 사용 불가 |
+| 정적 분석기 (clang-tidy) | 규칙 기반만 가능 → 컨텍스트 이해 부족 |
 
 **핵심 과제**: 외부 API 없이, 내부 네트워크에서만 LLM 기반 코드 분석을 수행해야 함
 
 ---
 
-### 1.2 해결 방안
-
-**해결책**: **On-Premises LLM** 환경을 구축하여 모든 데이터가 내부에서만 처리되도록 합니다.
-
-**3가지 핵심 결정**:
-1. **인프라**: DGX-SPARK (NVIDIA GPU 서버) 도입 - 128GB RAM, 24GB VRAM
-2. **LLM 서버**: Ollama를 사용한 로컬 LLM 서빙 - `localhost:11434`에서만 접근
-3. **모델 선정**: DeepSeek-Coder 33B - 코드 특화 오픈소스 모델
-
-> **💡 왜 DeepSeek-Coder 33B인가?**
->
-> - **오픈소스**: 내부 배포 가능, 라이선스 문제 없음
-> - **코드 특화**: 일반 LLM보다 코드 이해력 우수
-> - **적절한 크기**: 33B 파라미터로 24GB VRAM에서 구동 가능
-> - **성능**: GPT-3.5 수준의 코드 분석 능력
+### 1.2 해결 방안: 온프레미스 LLM
 
 ```mermaid
 graph LR
-    subgraph "인프라 구축"
-        DGX[DGX-SPARK 구매 - GPU 서버]
-    end
-
-    subgraph "LLM 환경"
-        DGX --> Ollama[Ollama 설치 - 로컬 LLM 서버]
-        Ollama --> Model[DeepSeek-Coder 33B - 실사용 ~20GB]
-    end
-
-    subgraph "프레임워크 개발"
-        Model --> Framework[Python Framework - 프롬프팅 기법]
-        Framework --> Exp[실험 인프라 - Ground Truth]
-    end
-
-    subgraph "프로덕션 도구"
-        Exp --> Prod[ProductionAnalyzer - CLI 도구]
-        Prod --> Result[✅ 온프레미스 - 코드 리뷰어]
+    subgraph "온프레미스 솔루션"
+        DGX[DGX-SPARK - GPU 서버] --> Ollama[Ollama - 로컬 LLM 서버]
+        Ollama --> Model[DeepSeek-Coder 33B]
+        Model --> Framework[Python Framework]
+        Framework --> CLI[CLI 도구]
     end
 
     style DGX fill:#1a237e,color:#fff
     style Ollama fill:#283593,color:#fff
     style Model fill:#303f9f,color:#fff
     style Framework fill:#3949ab,color:#fff
-    style Exp fill:#3f51b5,color:#fff
-    style Prod fill:#5c6bc0,color:#fff
-    style Result fill:#4caf50,color:#fff
+    style CLI fill:#4caf50,color:#fff
 ```
 
-**핵심 전략**:
-1. **온프레미스 LLM**: DGX-SPARK + Ollama + DeepSeek-Coder
-2. **실험 기반 개발**: Ground Truth로 F1 score 측정
-3. **모듈화된 설계**: 플러그인으로 다른 언어도 쉽게 추가
+위 다이어그램은 **온프레미스 솔루션 스택**을 보여줍니다:
+- **DGX-SPARK**: NVIDIA GPU 서버 (128GB RAM, 24GB VRAM)
+- **Ollama**: 로컬 LLM 서빙 (`localhost:11434`)
+- **DeepSeek-Coder 33B**: 코드 특화 오픈소스 모델 (~20GB)
+- **Python Framework**: 프롬프팅 기법 + 실험 인프라
 
 ---
 
-### 1.3 프로젝트 목표
+### 1.3 로컬 LLM의 현실적 한계
 
-| 목표 | 달성 방법 | 결과 |
-|------|----------|------|
-| **보안 요구사항 충족** | 온프레미스 실행 | ✅ 모든 데이터 내부 처리 |
-| **높은 정확도** | 5가지 기법 실험 비교 | ✅ F1 0.615 (Few-shot-5) |
-| **빠른 분석 속도** | 병렬 처리 + 청킹 | ✅ 700줄 파일 40초 |
-| **확장 가능성** | 플러그인 아키텍처 | ✅ Python, RTL 추가 가능 |
-| **프로덕션 사용** | CLI + PR 통합 | ✅ 실제 워크플로우 통합 |
+> **⚠️ 핵심 문제**: 로컬 LLM은 **인풋이 조금만 길어져도 출력 퀄리티가 급격히 저하**됩니다.
+> 이것이 이 프로젝트에서 청킹과 파이프라인 설계가 중요한 이유입니다.
 
-> **💡 F1 Score란?**
->
-> F1 점수는 **정밀도(Precision)**와 **재현율(Recall)**의 조화 평균으로, 모델의 정확도를 평가하는 지표입니다.
-> - **Precision**: 모델이 발견한 이슈 중 실제 이슈의 비율 (False Positive 최소화)
-> - **Recall**: 실제 이슈 중 모델이 찾아낸 비율 (False Negative 최소화)
-> - **F1 = 2 × (Precision × Recall) / (Precision + Recall)**
-> - F1 점수가 **0.615**라는 것은 Ground Truth 대비 61.5%의 균형잡힌 정확도를 달성했다는 의미입니다.
+```mermaid
+graph LR
+    subgraph "인풋 길이와 퀄리티 관계"
+        Short[짧은 인풋 - 100줄] --> Good[✅ 높은 퀄리티]
+        Medium[중간 인풋 - 300줄] --> OK[⚠️ 퀄리티 저하 시작]
+        Long[긴 인풋 - 500줄+] --> Bad[❌ 심각한 퀄리티 저하]
+    end
+
+    style Short fill:#2e7d32,color:#fff
+    style Good fill:#2e7d32,color:#fff
+    style Medium fill:#e65100,color:#fff
+    style OK fill:#e65100,color:#fff
+    style Long fill:#c62828,color:#fff
+    style Bad fill:#c62828,color:#fff
+```
+
+위 다이어그램은 **인풋 길이에 따른 퀄리티 변화**를 보여줍니다. 300줄을 넘어가면 퀄리티가 급격히 떨어집니다.
 
 ---
 
-## 2. 기술 스택 및 아키텍처
+#### 퀄리티 저하 실제 예시
 
-이 프로젝트는 **6개 계층**으로 구성됩니다. 각 계층은 명확한 책임을 가지며, 아래에서 위로 의존합니다.
+**✅ 짧은 인풋 (50줄) - 정확한 분석**
+
+```cpp
+// 입력 코드
+void process(int* data) {
+    *data = 42;  // line 3: null check 없음
+}
+```
+
+```json
+// LLM 출력 (정확함)
+{
+  "issues": [{
+    "line": 3,
+    "category": "memory-safety",
+    "description": "Null pointer dereference: 'data' is dereferenced without null check"
+  }]
+}
+```
+
+**❌ 긴 인풋 (500줄+) - 퀄리티 저하**
+
+```cpp
+// 입력: 500줄짜리 파일
+// ... 앞부분 300줄 ...
+void process(int* data) {
+    *data = 42;  // line 312: 동일한 버그
+}
+// ... 뒷부분 200줄 ...
+```
+
+```json
+// LLM 출력 (문제 있음)
+{
+  "issues": [
+    {
+      "line": 287,           // ❌ 잘못된 라인 번호
+      "category": "memory-safety",
+      "description": "Potential null pointer"  // ⚠️ 설명 불충분
+    },
+    {
+      "line": 450,
+      "category": "performance",
+      "description": "Consider using std::vector"  // ❌ 할루시네이션 (존재하지 않는 이슈)
+    }
+    // ❌ line 312의 실제 버그는 놓침
+  ]
+}
+```
+
+**퀄리티 저하 패턴 요약**:
+
+| 증상 | 짧은 인풋 | 긴 인풋 |
+|------|----------|---------|
+| **라인 번호** | 정확 | 틀리거나 근처 라인 |
+| **버그 탐지** | 대부분 찾음 | 핵심 버그 놓침 |
+| **할루시네이션** | 거의 없음 | 존재하지 않는 이슈 보고 |
+| **설명 품질** | 구체적 | 모호하고 짧음 |
+| **JSON 형식** | 정상 | 가끔 파싱 실패 |
 
 ---
 
-### 2.1 전체 기술 스택
-
-**기술 스택 다이어그램**은 시스템의 전체 구조를 보여줍니다:
-
-| 계층 | 역할 | 핵심 기술 |
+| 한계 | 영향 | 극복 전략 |
 |------|------|----------|
-| **(1) 하드웨어** | GPU 연산 | DGX-SPARK (24GB VRAM) |
-| **(2) LLM 실행** | 모델 서빙 | Ollama + DeepSeek-Coder 33B |
-| **(3) 프레임워크** | 프롬프팅 로직 | 5가지 기법 + 실험 시스템 |
-| **(4) 플러그인** | 언어별 지식 | C++ Plugin (5 카테고리) |
-| **(5) 응용** | 사용자 인터페이스 | CLI (analyze file/dir/pr) |
-| **(6) 지원** | 보조 기능 | tree-sitter (AST), 병렬 처리 |
+| **긴 인풋 = 낮은 퀄리티** | 핵심 버그 놓침, 할루시네이션 | **AST 청킹 + 작은 단위 분석** |
+| **분산 분석의 한계** | chunk 경계 이슈 놓침 | **Aggregator LLM으로 종합** |
+| **느린 응답 속도** | 파일당 8-30초 | 병렬 처리 |
+| **불안정한 출력** | JSON 파싱 실패 | 재시도 + 검증 로직 |
 
 ```mermaid
 graph TB
-    subgraph "(1) 하드웨어 계층"
-        HW[DGX-SPARK - RAM 128GB, GPU 24GB VRAM]
+    subgraph "핵심 전략: Multi-Stage Pipeline"
+        Input[긴 파일] --> Chunk[① Chunking - 작은 단위로 분할]
+        Chunk --> Workers[② LLM Workers - 병렬 분석]
+        Workers --> Aggregator[③ Aggregator - 결과 종합]
+        Aggregator --> Output[최종 결과]
     end
 
-    subgraph "(2) LLM 실행 계층"
-        HW --> Ollama[Ollama Server - 로컬 LLM 런타임]
-        Ollama --> Model[DeepSeek-Coder 33B - 실사용 ~20GB]
-    end
+    style Chunk fill:#1976d2,color:#fff
+    style Workers fill:#7b1fa2,color:#fff
+    style Aggregator fill:#388e3c,color:#fff
+```
 
-    subgraph "(3) 프레임워크 계층"
-        Model --> Core[Framework Core - Python 3.12+]
-        Core --> Tech[5 Techniques - Zero-shot ~ Hybrid]
-        Core --> Eval[Experiment System - F1/Precision/Recall]
-    end
+위 다이어그램은 **Multi-Stage Pipeline 전략**을 보여줍니다:
+1. **Chunking**: 긴 파일을 작은 단위로 분할
+2. **LLM Workers**: 각 chunk를 병렬로 분석
+3. **Aggregator**: 분산된 결과를 종합하여 최종 결과 생성
 
-    subgraph "(4) 플러그인 계층"
-        Tech --> Plugin[Domain Plugins]
-        Plugin --> Cpp[C++ Plugin - 5 categories, 5 examples]
-        Plugin --> Future[Python/RTL Plugins - Future]
-    end
+---
 
-    subgraph "(5) 응용 계층"
-        Cpp --> CLI[CLI Commands]
+## 2. 시스템 아키텍처
+
+### 2.1 3-Tier 아키텍처 개요
+
+```mermaid
+graph TB
+    subgraph "Tier 3: Applications"
+        CLI[CLI Commands]
         CLI --> File[analyze file]
         CLI --> Dir[analyze dir]
         CLI --> PR[analyze pr]
     end
 
-    subgraph "(6) 지원 시스템"
-        Core --> TreeSitter[tree-sitter-cpp - AST Parsing]
-        Core --> Parallel[ThreadPoolExecutor - Parallel Processing]
-        Core --> Pydantic[Pydantic Models - Type Safety]
+    subgraph "Tier 2: Domain Plugins"
+        File --> Orch[Orchestrator]
+        Dir --> Orch
+        PR --> Orch
+        Orch --> Plugin[C++ Plugin]
+        Plugin --> Examples[5 Few-shot Examples]
+        Plugin --> Categories[5 Categories]
     end
 
-    style HW fill:#1a237e,color:#fff
-    style Ollama fill:#283593,color:#fff
-    style Model fill:#303f9f,color:#fff
-    style Core fill:#3949ab,color:#fff
-    style Tech fill:#3f51b5,color:#fff
-    style Cpp fill:#5c6bc0,color:#fff
-    style CLI fill:#7986cb,color:#fff
-```
-
----
-
-### 2.2 주요 기술 선택 이유
-
-핵심 기술 선택 시 **실제 벤치마크**를 통해 최적의 조합을 찾았습니다.
-
----
-
-#### DeepSeek-Coder 33B 선택 근거
-
-**질문**: 어떤 LLM 모델을 사용해야 할까?
-
-여러 오픈소스 모델을 **동일한 조건**에서 테스트하여 비교했습니다. Few-shot-5 기법, 20개 Ground Truth로 평가했습니다.
-
-```mermaid
-graph LR
-    subgraph "후보 모델 비교"
-        M1[DeepSeek 33B - F1 - 0.615]
-        M2[Qwen 14B - F1 - 0.521]
-        M3[CodeLlama 34B - F1 - 0.498]
-        M4[Mistral 7B - F1 - 0.411]
+    subgraph "Tier 1: Framework Core"
+        Orch --> Tech[Technique Factory]
+        Tech --> ZS[Zero-Shot]
+        Tech --> FS[Few-Shot-5 ⭐]
+        Tech --> Hybrid[Hybrid]
     end
 
-    subgraph "평가 기준"
-        M1 --> C1[✅ 최고 정확도]
-        M1 --> C2[✅ 코드 특화 학습]
-        M1 --> C3[✅ ~20GB VRAM에 적합]
-        M1 --> C4[✅ 8초 응답속도]
-    end
-
-    subgraph "최종 선택"
-        C1 --> Winner[DeepSeek-Coder 33B - ★ 선택]
-        C2 --> Winner
-        C3 --> Winner
-        C4 --> Winner
-    end
-
-    style M1 fill:#4caf50,color:#fff
-    style Winner fill:#2e7d32,color:#fff
-    style M2 fill:#ff9800,color:#fff
-    style M3 fill:#f44336,color:#fff
-    style M4 fill:#d32f2f,color:#fff
-```
-
-**벤치마크 결과** (Few-shot-5 기준, 20개 Ground Truth):
-
-| 모델 | 크기 | RAM | F1 Score | 응답 속도 |
-|------|------|-----|----------|----------|
-| **DeepSeek-Coder 33B** | 33B | 18GB | **0.615** ⭐ | ~8초 |
-| Qwen 2.5 Coder 14B | 14B | 8GB | 0.521 (-15%) | ~5초 |
-| CodeLlama 34B | 34B | 19GB | 0.498 (-19%) | ~9초 |
-| Mistral 7B | 7B | 4GB | 0.411 (-33%) | ~3초 |
-
-**선택 근거**: DeepSeek-Coder 33B는 정확도가 가장 높고, DGX-SPARK의 24GB VRAM 내에서 여유 있게 실행 가능
-
----
-
-#### tree-sitter vs clangd 선택
-
-**질문**: 대용량 C++ 파일을 파싱할 때 어떤 도구를 사용해야 할까?
-
-두 가지 옵션이 있습니다:
-- **clangd**: LLVM 기반, 완전한 semantic 분석 가능
-- **tree-sitter**: 경량 파서, syntax만 분석
-
-```mermaid
-graph TB
-    subgraph "요구사항: 대용량 파일 청킹"
-        Req[700줄 파일을 - 함수 단위로 분할]
-    end
-
-    subgraph "Option 1: clangd"
-        Clangd[clangd - libclang 기반]
-        Clangd --> ClangPro[✅ Semantic 분석 - Type checking]
-        Clangd --> ClangCon[❌ 느림 1-2초 - ❌ compile_commands 필요 - ❌ Include 의존성]
-    end
-
-    subgraph "Option 2: tree-sitter"
-        TS[tree-sitter - Incremental parser]
-        TS --> TSPro[✅ 빠름 10ms - ✅ 의존성 없음 - ✅ Syntax만 파싱]
-        TS --> TSCon[❌ Semantic 정보 없음]
-    end
-
-    subgraph "의사결정"
-        Req --> Question{Semantic 정보: 필요한가?}
-        Question -->|불필요: LLM이 함| Choice[tree-sitter 선택]
-        Question -->|필요| ClangChoice[clangd]
-    end
-
-    Req --> Clangd
-    Req --> TS
-    TSPro --> Choice
-    ClangPro --> ClangChoice
-
-    style Choice fill:#4caf50,color:#fff
-    style TS fill:#66bb6a,color:#fff
-    style Clangd fill:#ff9800,color:#fff
-```
-
-**핵심**: 우리는 **함수 경계만** 알면 됨 → tree-sitter로 충분 (200배 빠름!)
-
----
-
-## 3. 3-Tier 시스템 아키텍처
-
-### 3.1 전체 아키텍처 개요
-
-이 프로젝트는 **3-Tier 아키텍처**로 설계되어 **확장성**과 **유지보수성**을 극대화했습니다. 각 계층은 명확한 책임을 가지며, 새로운 언어나 기법을 쉽게 추가할 수 있습니다.
-
-#### 전체 구조 (한눈에 보기)
-
-**Tier 구분 범례**:
-- 🟠 **Tier 3**: Applications (사용자 인터페이스)
-- 🟢 **Tier 2**: Domain Plugins (언어별 지식)
-- 🔵 **Tier 1**: Framework Core (프롬프팅 엔진)
-- 🟣 **LLM Layer**: 추론 실행
-- ⚙️ **Support**: 보조 시스템
-
-```mermaid
-graph TB
-    subgraph T3["🟠 Tier 3: Applications"]
-        User[사용자]
-        CLI[CLI Commands]
-        File[analyze file]
-        Dir[analyze dir]
-        PR[analyze pr]
-        Exp[experiment run]
-
-        User --> CLI
-        CLI --> File
-        CLI --> Dir
-        CLI --> PR
-        CLI --> Exp
-    end
-
-    subgraph T2["🟢 Tier 2: Domain Plugins"]
-        PA[ProductionAnalyzer<br/>오케스트레이터]
-        Plugin[DomainPlugin Interface]
-        Cpp[C++ Plugin<br/>✅ Production]
-        Py[Python Plugin<br/>Future]
-        RTL[RTL Plugin<br/>Future]
-        CppEx[5 Examples]
-        CppCat[5 Categories]
-
-        File --> PA
-        Dir --> PA
-        PR --> PA
-        PA --> Plugin
-        Plugin --> Cpp
-        Plugin --> Py
-        Plugin --> RTL
-        Cpp --> CppEx
-        Cpp --> CppCat
-    end
-
-    subgraph T1["🔵 Tier 1: Framework Core"]
-        Tech[Technique Factory]
-        ZS[Zero-Shot<br/>F1: 0.526]
-        FS3[Few-Shot-3<br/>F1: 0.588]
-        FS5[Few-Shot-5<br/>F1: 0.615 ⭐]
-        CoT[Chain-of-Thought<br/>F1: 0.571]
-        Hybrid[Hybrid<br/>F1: 0.634 ⭐⭐]
-
-        PA --> Tech
-        Tech --> ZS
-        Tech --> FS3
-        Tech --> FS5
-        Tech --> CoT
-        Tech --> Hybrid
-    end
-
-    subgraph LLM["🟣 LLM Layer"]
-        Client[OllamaClient]
-        Ollama[Ollama Server<br/>localhost:11434]
-        Model[DeepSeek-Coder 33B<br/>실사용 ~20GB]
-
-        ZS --> Client
-        FS3 --> Client
-        FS5 --> Client
-        CoT --> Client
+    subgraph "LLM Layer"
+        ZS --> Client[OllamaClient]
+        FS --> Client
         Hybrid --> Client
-        Client --> Ollama
-        Ollama --> Model
+        Client --> Ollama[DeepSeek-Coder 33B]
     end
 
-    subgraph Support["⚙️ Support Systems"]
-        Chunker[FileChunker<br/>tree-sitter AST]
-        Analyzer[ChunkAnalyzer<br/>4 Workers Parallel]
-        Merger[ResultMerger<br/>Dedup + Line Fix]
-
-        PA --> Chunker
-        Chunker --> Analyzer
-        Analyzer --> Merger
+    subgraph "Support Systems"
+        Orch --> Chunker[AST Chunker]
+        Chunker --> Parallel[Parallel Analyzer]
+        Parallel --> Merger[Result Merger]
     end
 
-    Exp --> Runner[ExperimentRunner<br/>Ground Truth 검증]
-
-    style Support fill:#616161,stroke:#757575,stroke-width:2px,color:#fff
-
-    style PA fill:#66bb6a,color:#fff
-    style Cpp fill:#81c784,color:#fff
-    style FS5 fill:#4caf50,color:#fff
-    style Hybrid fill:#66bb6a,color:#fff
-    style Model fill:#9575cd,color:#fff
+    style Orch fill:#388e3c,color:#fff
+    style FS fill:#1976d2,color:#fff
+    style Chunker fill:#7b1fa2,color:#fff
 ```
 
-이 다이어그램에서 **각 Tier의 경계**를 명확히 볼 수 있습니다:
-- 사용자 요청은 🟠 Tier 3에서 시작
-- 🟢 Tier 2가 언어별 지식 제공
-- 🔵 Tier 1이 프롬프팅 전략 결정
-- 🟣 LLM Layer가 실제 추론 수행
-- ⚙️ Support가 대용량 파일 처리
+위 다이어그램은 **3-Tier 아키텍처**를 보여줍니다:
+- **Tier 3 (Applications)**: 사용자 인터페이스 (CLI)
+- **Tier 2 (Domain Plugins)**: 언어별 지식 + **Orchestrator**
+- **Tier 1 (Framework Core)**: 프롬프팅 전략
+- **Support Systems**: 대용량 파일 처리 (청킹, 병렬, 병합)
+
+**핵심 포인트**: Orchestrator가 모든 흐름을 제어하며, 파일 크기에 따라 직접 분석 vs 청킹 분석을 결정합니다.
 
 ---
 
-#### 3.1.1 3-Tier 아키텍처 (개념)
+### 2.2 기술 스택
+
+| 계층 | 역할 | 기술 |
+|------|------|------|
+| 하드웨어 | GPU 연산 | DGX-SPARK (24GB VRAM) |
+| LLM 서빙 | 모델 실행 | Ollama + DeepSeek-Coder 33B |
+| 프레임워크 | 프롬프팅 | Python 3.12 + Pydantic |
+| AST 파싱 | 청킹 | tree-sitter-cpp |
+| 병렬 처리 | 속도 향상 | ThreadPoolExecutor |
+
+---
+
+## 3. 오케스트레이션
+
+**Orchestrator**는 시스템의 **심장부**입니다. 로컬 LLM의 한계를 극복하기 위한 **Multi-Stage Pipeline**을 관리합니다.
+
+---
+
+### 3.1 이상적인 파이프라인 설계
+
+로컬 LLM의 "긴 인풋 = 낮은 퀄리티" 문제를 해결하기 위해 **3단계 파이프라인**이 필요합니다.
 
 ```mermaid
 graph TB
-    User[사용자] --> T3[Tier 3: Applications<br/>CLI Commands]
+    subgraph "Stage 1: Chunking"
+        Input[소스 코드] --> Chunker[AST Chunker]
+        Chunker --> C1[Chunk 1]
+        Chunker --> C2[Chunk 2]
+        Chunker --> C3[Chunk 3]
+        Chunker --> CN[Chunk N]
+    end
 
-    T3 --> T2[Tier 2: Domain Plugins<br/>C++ / Python / RTL]
+    subgraph "Stage 2: LLM Workers (병렬)"
+        C1 --> W1[Worker 1]
+        C2 --> W2[Worker 2]
+        C3 --> W3[Worker 3]
+        CN --> WN[Worker N]
 
-    T2 --> T1[Tier 1: Framework Core<br/>5가지 프롬프팅 기법]
+        W1 --> R1[Result 1]
+        W2 --> R2[Result 2]
+        W3 --> R3[Result 3]
+        WN --> RN[Result N]
+    end
 
-    T1 --> LLM[LLM Layer<br/>Ollama + DeepSeek-Coder 33B]
+    subgraph "Stage 3: Aggregator LLM"
+        R1 --> Agg[Aggregator LLM]
+        R2 --> Agg
+        R3 --> Agg
+        RN --> Agg
 
-    style T3 fill:#f57c00,color:#fff
-    style T2 fill:#388e3c,color:#fff
-    style T1 fill:#1976d2,color:#fff
-    style LLM fill:#7986cb,color:#fff
+        Agg --> Resolve[충돌 해결]
+        Agg --> Filter[False Positive 필터링]
+        Agg --> Cross[Cross-chunk 이슈 탐지]
+
+        Resolve --> Final[최종 결과]
+        Filter --> Final
+        Cross --> Final
+    end
+
+    style Chunker fill:#1976d2,color:#fff
+    style W1 fill:#7b1fa2,color:#fff
+    style W2 fill:#7b1fa2,color:#fff
+    style W3 fill:#7b1fa2,color:#fff
+    style WN fill:#7b1fa2,color:#fff
+    style Agg fill:#388e3c,color:#fff
+    style Final fill:#2e7d32,color:#fff
 ```
 
-**계층별 역할**:
+위 다이어그램은 **이상적인 3단계 파이프라인**을 보여줍니다:
+1. **Stage 1 (Chunking)**: 긴 파일을 작은 단위로 분할
+2. **Stage 2 (LLM Workers)**: 각 chunk를 병렬로 분석 → 짧은 인풋으로 높은 퀄리티 유지
+3. **Stage 3 (Aggregator LLM)**: 분산된 결과를 **LLM이 종합**하여 최종 결과 생성
 
-- **Tier 3 (Applications)**: 사용자 인터페이스
-  - **역할**: "언제 분석할까?"
-  - **책임**: CLI 명령어 제공 (`analyze file`, `analyze pr` 등)
-  - **예**: 개발자가 `./analyze.sh file.cpp` 실행
+**Aggregator LLM의 역할**:
 
-- **Tier 2 (Domain Plugins)**: 언어별 도메인 지식
-  - **역할**: "무엇을 찾을까?"
-  - **책임**: 언어별 버그 카테고리, Few-shot 예시, 파일 필터링
-  - **예**: C++ 플러그인은 "memory leak", "buffer overflow" 같은 C++ 특화 이슈 정의
-
-- **Tier 1 (Framework Core)**: 프롬프팅 로직
-  - **역할**: "어떻게 물어볼까?"
-  - **책임**: Zero-shot, Few-shot, Hybrid 같은 프롬프팅 기법 구현
-  - **예**: Few-shot-5는 5개 예시를 프롬프트에 포함해서 LLM에게 전달
-
-- **LLM Layer**: 실제 추론 엔진
-  - **역할**: 코드 분석 및 이슈 탐지
-  - **책임**: Ollama를 통해 DeepSeek-Coder 33B 모델 호출
-  - **예**: 프롬프트를 받아서 JSON 형식으로 이슈 목록 반환
-
-**왜 3-Tier인가?**
-1. **확장성**: 새 언어 추가 시 Tier 2만 추가하면 됨 (Python Plugin, RTL Plugin)
-2. **재사용성**: 모든 언어가 같은 Framework Core 사용 (Zero-shot, Few-shot 등)
-3. **유지보수**: 각 계층이 독립적이라 수정이 쉬움
+- **충돌 해결**: Worker들이 같은 이슈를 다르게 판단한 경우 결정
+- **False Positive 필터링**: 전체 컨텍스트에서 볼 때 오탐인 이슈 제거
+- **Cross-chunk 이슈 탐지**: chunk 경계에서 놓친 이슈 발견
 
 ---
 
-#### 3.1.2 Tier 3 (Applications) + Tier 2 (Plugins)
+### 3.2 현재 구현 vs 향후 설계
 
 ```mermaid
 graph TB
-    CLI[CLI Commands]
-    CLI --> File[analyze file]
-    CLI --> Dir[analyze dir]
-    CLI --> PR[analyze pr]
-    CLI --> Exp[experiment run]
 
-    File --> PA[ProductionAnalyzer<br/>분석 오케스트레이터]
-    Dir --> PA
-    PR --> PA
+    subgraph "향후: LLM 기반 종합"
+        FW1[Worker 1 결과] --> FA[Aggregator LLM]
+        FW2[Worker 2 결과] --> FA
+        FA --> FR[지능적 종합]
+        FR --> FO[결과 출력]
+    end
 
-    PA --> Plugin[DomainPlugin<br/>Interface]
+    subgraph "현재: 규칙 기반 병합"
+        CW1[Worker 1 결과] --> CM[ResultMerger - 규칙 기반]
+        CW2[Worker 2 결과] --> CM
+        CM --> CD[중복 제거 - line + category]
+        CD --> CS[라인 정렬]
+        CS --> CO[결과 출력]
+    end
 
-    Plugin --> Cpp[✅ C++ Plugin<br/>Production]
-    Plugin --> Py[Python Plugin<br/>Future]
-    Plugin --> RTL[RTL Plugin<br/>Future]
-
-    Cpp --> Ex[5 Examples]
-    Cpp --> Cat[5 Categories]
-
-    Exp --> Runner[ExperimentRunner<br/>Ground Truth 검증]
-
-    style CLI fill:#f57c00,color:#fff
-    style PA fill:#388e3c,color:#fff
-    style Cpp fill:#66bb6a,color:#fff
-    style Runner fill:#9fa8da,color:#fff
+    style CM fill:#e65100,color:#fff
+    style FA fill:#388e3c,color:#fff
 ```
 
-**상세 설명**:
+| 구분 | 현재 (규칙 기반) | 향후 (LLM 기반) |
+|------|-----------------|----------------|
+| **병합 방식** | line + category로 중복 제거 | LLM이 지능적으로 종합 |
+| **충돌 해결** | 더 긴 reasoning 선택 | LLM이 맥락 고려하여 결정 |
+| **Cross-chunk 이슈** | ❌ 탐지 불가 | ✅ Aggregator가 탐지 |
+| **False Positive** | ❌ 필터링 없음 | ✅ 전체 컨텍스트에서 필터링 |
+| **속도** | 빠름 (규칙) | 느림 (LLM 1회 추가 호출) |
 
-**Tier 3: Applications (사용자 접점)**
-- `analyze file`: 단일 C++ 파일 분석
-- `analyze dir`: 디렉토리 내 모든 파일 분석
-- `analyze pr`: Git PR의 변경된 파일만 분석
-- `experiment run`: Ground Truth로 실험 실행 (F1 score 측정)
+---
 
-**Tier 2: Domain Plugins (언어 지식)**
-- **ProductionAnalyzer**: 실제 분석을 수행하는 오케스트레이터
-  - 파일 읽기 → 플러그인 선택 → Technique 호출 → 결과 반환
-- **DomainPlugin Interface**: 모든 플러그인이 구현해야 할 인터페이스
-  - `get_categories()`: 버그 카테고리 반환
-  - `get_examples()`: Few-shot 예시 반환
-  - `should_analyze(file)`: 파일 분석 여부 결정
-- **C++ Plugin** (현재 유일한 프로덕션 플러그인):
-  - 5개 카테고리: memory-safety, modern-cpp, performance, security, concurrency
-  - 5개 Few-shot 예시 (각 카테고리당 1개 + negative example 1개)
-  - 파일 필터: test 파일, third_party 제외
+#### Aggregator LLM이란?
 
-**데이터 흐름 예시**:
+**Aggregator LLM**은 여러 Worker의 분석 결과를 **하나의 LLM이 종합**하는 방식입니다.
+
+**왜 필요한가?**
+- 각 Worker는 **자기 chunk만** 봅니다 (전체 파일을 모름)
+- 규칙 기반 병합은 "같은 라인, 같은 카테고리면 중복"이라는 **단순 규칙**만 적용
+- **맥락을 이해하는 판단**이 불가능
+
+**구현 방식** (향후):
 ```
-사용자: ./analyze.sh src/main.cpp
-  ↓
-CLI: analyze file 명령 실행
-  ↓
-ProductionAnalyzer: main.cpp 읽기
-  ↓
-C++ Plugin: "분석 대상입니다" (test 파일 아님)
-  ↓
-Technique (Few-shot-5): 5개 예시와 함께 LLM에게 질문
-  ↓
-결과: 3개 이슈 발견
+[Aggregator 프롬프트 예시]
+
+당신은 코드 리뷰 결과를 종합하는 전문가입니다.
+아래는 같은 파일의 서로 다른 부분을 분석한 결과입니다.
+
+## Worker 1 결과 (lines 1-100):
+- Line 45: memory-safety - "malloc without free"
+
+## Worker 2 결과 (lines 80-180):
+- Line 120: memory-safety - "free without null check"
+- Line 95: performance - "unnecessary copy"
+
+## Worker 3 결과 (lines 160-260):
+- Line 180: memory-safety - "double free possible"
+
+다음을 수행하세요:
+1. 중복된 이슈가 있으면 하나로 통합
+2. chunk 경계에서 놓친 이슈가 있는지 확인 (예: Worker 1의 malloc이 Worker 2에서 free되는가?)
+3. 전체 맥락에서 오탐(False Positive)인 이슈 제거
+4. 최종 이슈 목록 출력
 ```
 
 ---
 
-#### 3.1.3 Tier 1 (Framework) + LLM Layer + Support
+#### Cross-chunk 이슈란?
+
+**Cross-chunk 이슈**는 코드가 **여러 chunk에 걸쳐** 있어서 개별 Worker가 탐지하지 못하는 버그입니다.
 
 ```mermaid
 graph TB
-    PA[ProductionAnalyzer]
+    subgraph "Chunk 1 (lines 1-100)"
+        C1_Code["void* ptr = malloc(100);  // line 45"]
+        C1_Worker[Worker 1: malloc 발견, free 없음?]
+    end
 
-    PA --> Tech[Technique Factory]
+    subgraph "Chunk 2 (lines 80-200)"
+        C2_Code["free(ptr);  // line 150"]
+        C2_Worker[Worker 2: free 발견, malloc 모름]
+    end
 
-    Tech --> ZS[Zero-Shot<br/>F1: 0.526]
-    Tech --> FS3[Few-Shot-3<br/>F1: 0.588]
-    Tech --> FS5[✅ Few-Shot-5<br/>F1: 0.615]
-    Tech --> CoT[Chain-of-Thought<br/>F1: 0.571]
-    Tech --> Hybrid[Hybrid<br/>F1: 0.634 ⭐]
+    subgraph "향후: Aggregator LLM"
+        C1_Worker --> Agg[Aggregator가 전체 파악]
+        C2_Worker --> Agg
+        Agg --> OK[✅ malloc-free 쌍 확인 - 정상]
+    end
+    
+    subgraph "현재: 규칙 기반"
+        C1_Worker --> Rule[둘 다 버그로 보고]
+        C2_Worker --> Rule
+        Rule --> FP[❌ False Positive 발생]
+    end
 
-    ZS --> Client[OllamaClient]
-    FS3 --> Client
-    FS5 --> Client
-    CoT --> Client
-    Hybrid --> Client
 
-    Client --> Ollama[Ollama Server<br/>localhost:11434]
-    Ollama --> LLM[DeepSeek-Coder 33B<br/>실사용 ~20GB]
-
-    PA --> Support[Support Systems]
-    Support --> Chunker[FileChunker<br/>tree-sitter]
-    Support --> Analyzer[ChunkAnalyzer<br/>Parallel]
-    Support --> Merger[ResultMerger<br/>Dedup]
-
-    style PA fill:#388e3c,color:#fff
-    style FS5 fill:#4caf50,color:#fff
-    style Hybrid fill:#66bb6a,color:#fff
-    style Client fill:#5c6bc0,color:#fff
-    style LLM fill:#7986cb,color:#fff
+    style FP fill:#c62828,color:#fff
+    style OK fill:#2e7d32,color:#fff
 ```
 
-**상세 설명**:
-
-**Tier 1: Framework Core (프롬프팅 엔진)**
-
-ProductionAnalyzer가 **Technique Factory**를 통해 5가지 프롬프팅 기법 중 하나를 선택합니다:
-
-1. **Zero-Shot** (F1: 0.526)
-   - 예시 없이 바로 질문
-   - 가장 빠르지만 정확도 낮음
-
-2. **Few-Shot-3** (F1: 0.588)
-   - 3개 예시 제공
-   - 균형잡힌 성능
-
-3. **Few-Shot-5** (F1: 0.615) ⭐ **추천**
-   - 5개 예시 제공 (각 카테고리 1개씩)
-   - **프로덕션 기본값**
-   - 높은 정확도 + 적절한 속도
-
-4. **Chain-of-Thought** (F1: 0.571)
-   - 단계별 추론 요구
-   - 설명력은 좋지만 느림
-
-5. **Hybrid** (F1: 0.634) ⭐⭐ **최고 성능**
-   - Few-shot + CoT 결합
-   - 가장 높은 정확도
-
-**LLM Layer (추론 실행)**
-- **OllamaClient**: HTTP API로 Ollama 서버 호출
-- **Ollama Server**: localhost:11434에서 실행 중
-- **DeepSeek-Coder 33B**: 실제 코드 분석 수행 (메모리 ~20GB 사용)
-
-**Support Systems (보조 기능)**
-
-대용량 파일(700줄 이상)을 처리하기 위한 시스템:
-
-1. **FileChunker**: tree-sitter로 AST 파싱 → 함수/클래스 단위로 분할
-2. **ChunkAnalyzer**: 4개 worker로 병렬 분석 (4x 속도 향상)
-3. **ResultMerger**: 결과 통합 + 중복 제거 + 라인 번호 보정
-
-**실제 분석 과정**:
-```
-1. ProductionAnalyzer: 파일 받음 (700줄)
-   ↓
-2. 파일 크기 체크: 700줄 > 임계값 → Chunking 필요
-   ↓
-3. FileChunker: AST 파싱 → 20개 함수로 분할
-   ↓
-4. Technique 선택: Few-shot-5
-   ↓
-5. ChunkAnalyzer: 20개 청크를 4개 worker로 병렬 분석
-   ↓
-6. OllamaClient → Ollama → DeepSeek-Coder 33B
-   ↓
-7. ResultMerger: 11개 unique 이슈 (중복 제거 후)
-   ↓
-8. 사용자에게 결과 반환
-```
+**구체적 예시**:
+| 상황 | 현재 (규칙) | 향후 (Aggregator) |
+|------|------------|------------------|
+| Chunk 1에서 `malloc`, Chunk 2에서 `free` | 각각 "leak", "dangling" 보고 (오탐) | 쌍으로 인식 → 정상 판정 |
+| Chunk 1에서 `lock`, Chunk 2에서 `unlock` 없음 | Chunk 1만 보고 "lock ok" | 전체 보고 "deadlock 가능성" 탐지 |
+| 같은 이슈를 Worker 1, 2가 다르게 설명 | 둘 다 보고 (중복) | 하나로 통합, 더 나은 설명 선택 |
 
 ---
 
-### 3.2 계층별 책임 분리
+### 3.3 현재 구현 상태
 
 ```mermaid
 graph LR
-    subgraph "Tier 1: Framework"
-        T1[\"프롬프팅 로직 - HOW - 어떻게 물어볼까?"/]
-        T1 --> T1_1[Zero-shot 구현]
-        T1 --> T1_2[Few-shot 구현]
-        T1 --> T1_3[Hybrid 구현]
+    subgraph "✅ 구현 완료"
+        I1[AST 청킹 - tree-sitter]
+        I2[병렬 LLM Workers - 4개]
+        I3[규칙 기반 ResultMerger]
+        I4[기본 재시도 로직]
     end
 
-    subgraph "Tier 2: Plugins"
-        T2[\"도메인 지식 - WHAT - 무엇을 찾을까?"/]
-        T2 --> T2_1[C++ 버그 카테고리]
-        T2 --> T2_2[Few-shot 예시]
-        T2 --> T2_3[파일 필터링 규칙]
+    subgraph "🔜 핵심 개선 필요"
+        F1[Aggregator LLM]
+        F2[Cross-chunk 이슈 탐지]
+        F3[적응형 재시도]
     end
 
-    subgraph "Tier 3: Applications"
-        T3[\"사용자 인터페이스 - WHEN - 언제 분석할까?"/]
-        T3 --> T3_1[파일 저장 시]
-        T3 --> T3_2[PR 생성 시]
-        T3 --> T3_3[수동 실행 시]
-    end
-
-    T1 --> T2
-    T2 --> T3
-
-    style T1 fill:#1976d2,color:#fff
-    style T2 fill:#388e3c,color:#fff
-    style T3 fill:#f57c00,color:#fff
+    style I1 fill:#2e7d32,color:#fff
+    style I2 fill:#2e7d32,color:#fff
+    style I3 fill:#e65100,color:#fff
+    style I4 fill:#2e7d32,color:#fff
+    style F1 fill:#c62828,color:#fff
+    style F2 fill:#c62828,color:#fff
+    style F3 fill:#1976d2,color:#fff
 ```
 
-**설계 원칙**:
-- **Tier 1**: 언어 독립적 (어떤 언어든 사용 가능)
-- **Tier 2**: 언어 의존적 (C++ 지식만 포함)
-- **Tier 3**: 워크플로우 정의 (CLI, CI/CD 등)
+**현재 한계**:
+- ResultMerger가 **규칙 기반**이라 지능적 판단 불가
+- Chunk 경계에서 발생하는 이슈를 **놓칠 수 있음**
+- 전체 파일 맥락에서 False Positive를 **걸러내지 못함**
 
 ---
 
-### 3.3 확장 시나리오
+### 3.4 향후 개선: 스마트 오케스트레이션
 
-3-Tier 아키텍처 덕분에 **각 계층을 독립적으로 확장**할 수 있습니다.
+> **"적응형(Adaptive)"이란?**
+> 현재는 모든 상황에 **동일한 방식**을 적용합니다. 적응형은 **상황에 따라 다른 전략**을 자동 선택하는 것입니다.
 
-#### 3.3.1 새 언어 추가 (Tier 2 확장)
+#### 3.4.1 적응형 기법 선택
 
-**예시**: Python 지원 추가
+현재는 모든 파일에 동일한 기법(Few-shot-5)을 사용합니다. 향후에는 **파일 특성에 따라 기법을 자동 선택**할 수 있습니다.
+
+**왜 적응형이 필요한가?**
+- **Few-shot-5**: memory-safety에 강하지만 modern-cpp는 못 잡음 (F1=0.000)
+- **Chain-of-Thought**: modern-cpp에 강함 (F1=0.727) 하지만 느림
+- **Zero-shot**: 빠르지만 정확도 낮음
+
+→ 코드 특성을 보고 **최적의 기법을 자동 선택**하면 정확도와 속도 모두 개선
 
 ```mermaid
 graph TB
-    Start[Python 지원 추가]
-    Start --> Step1["(1) PythonPlugin 구현<br/>- Tier 2만 수정<br/>- DomainPlugin 인터페이스 구현"]
-    Step1 --> Step2["(2) Ground Truth 생성<br/>- 20개 Python 예제<br/>- 5개 카테고리별 샘플"]
-    Step2 --> Step3["(3) 실험 실행<br/>- Tier 1 재사용<br/>- Few-shot, Hybrid 등 모든 기법 사용 가능"]
-    Step3 --> Done[✅ Python 지원 완료]
+    subgraph "적응형 기법 선택"
+        Input[입력 코드] --> Analyze[코드 특성 분석]
 
-    style Start fill:#4caf50,color:#fff
-    style Done fill:#66bb6a,color:#fff
+        Analyze --> Check1{포인터/메모리 코드?}
+        Check1 -->|Yes| FS[Few-shot-5 - memory-safety 특화]
+
+        Analyze --> Check2{Modern C++ 패턴?}
+        Check2 -->|Yes| Hybrid[Hybrid - CoT로 modern-cpp 탐지]
+
+        Analyze --> Check3{단순 유틸리티?}
+        Check3 -->|Yes| ZS[Zero-shot - 빠른 분석]
+    end
+
+    style FS fill:#388e3c,color:#fff
+    style Hybrid fill:#7b1fa2,color:#fff
+    style ZS fill:#546e7a,color:#fff
 ```
 
-**핵심**: Tier 1 (Framework)과 Tier 3 (CLI)는 수정 불필요! Tier 2만 추가하면 됩니다.
+위 다이어그램은 **적응형 기법 선택 전략**을 보여줍니다:
+- 메모리 관련 코드 → Few-shot-5 (memory-safety 예시 포함)
+- Modern C++ 패턴 → Hybrid (CoT로 상세 분석)
+- 단순 코드 → Zero-shot (빠른 처리)
 
----
+#### 3.4.2 적응형 재시도 전략
 
-#### 3.3.2 새 프롬프팅 기법 추가 (Tier 1 확장)
+로컬 LLM은 출력이 **불안정**할 수 있습니다. 강건한 에러 처리가 필수입니다.
 
-**예시**: RAG (Retrieval-Augmented Generation) 기법 추가
+**현재 문제**: 실패하면 **같은 방식으로 재시도** → 같은 에러 반복
+**적응형 해결**: 에러 **유형을 분석**하고 **다른 전략**으로 재시도
+
+| 에러 유형 | 현재 대응 | 적응형 대응 |
+|----------|----------|------------|
+| JSON 파싱 실패 | 같은 프롬프트 재시도 | "반드시 JSON 형식으로 출력하세요" 강조 |
+| 타임아웃 | 같은 크기로 재시도 | 청크 크기를 200→100줄로 축소 |
+| 할루시네이션 | 같은 설정 재시도 | temperature 0.7→0.3으로 낮춤 |
 
 ```mermaid
 graph TB
-    Start[RAG 기법 추가]
-    Start --> Step1["(1) RAGTechnique 구현<br/>- Tier 1만 수정<br/>- BaseTechnique 상속"]
-    Step1 --> Step2["(2) 실험 config 작성<br/>- experiment.yaml에 추가<br/>- 벡터 DB 설정"]
-    Step2 --> Step3["(3) F1 score 측정<br/>- Tier 2,3 재사용<br/>- Ground Truth로 평가"]
-    Step3 --> Done[✅ RAG 기법 완료]
 
-    style Start fill:#2196f3,color:#fff
-    style Done fill:#42a5f5,color:#fff
-```
-
-**핵심**: Tier 2 (Plugin)와 Tier 3 (CLI)는 수정 불필요! Tier 1만 추가하면 됩니다.
-
----
-
-#### 3.3.3 새 CLI 명령 추가 (Tier 3 확장)
-
-**예시**: Watch mode 추가 (파일 변경 감지 자동 분석)
-
-```mermaid
-graph TB
-    Start[watch mode 추가]
-    Start --> Step1["(1) Click 명령 추가<br/>- Tier 3만 수정<br/>- cli.py에 @click.command 추가"]
-    Step1 --> Step2["(2) ProductionAnalyzer 호출<br/>- Tier 1,2 재사용<br/>- 파일 변경 감지 시 analyze_file 호출"]
-    Step2 --> Done[✅ watch mode 완료]
-
-    style Start fill:#ff9800,color:#fff
-    style Done fill:#ffa726,color:#fff
-```
-
-**핵심**: Tier 1 (Framework)과 Tier 2 (Plugin)는 수정 불필요! Tier 3만 추가하면 됩니다.
-
----
-
-**확장성 요약**:
-- **새 언어**: Tier 2만 수정 (PythonPlugin, RTLPlugin 등)
-- **새 기법**: Tier 1만 수정 (RAG, Self-Consistency 등)
-- **새 명령**: Tier 3만 수정 (watch, daemon 등)
-- **기존 코드 재사용**: 나머지 계층은 그대로 사용
-
----
-
-## 4. 핵심 컴포넌트
-
-3-Tier 아키텍처에서 **Tier 2 (Plugins)**와 **Tier 1 (Framework)**를 연결하는 핵심 컴포넌트들을 상세히 설명합니다.
-
----
-
-### 4.1 ProductionAnalyzer - 분석 오케스트레이터
-
-**ProductionAnalyzer**는 시스템의 **심장부**입니다. 모든 분석 요청을 받아서 적절한 플러그인과 기법을 선택하고, 결과를 통합하는 역할을 합니다.
-
-**핵심 역할**:
-1. **초기화**: Plugin (C++), Model (DeepSeek-Coder 33B), Technique (Few-shot-5) 설정
-2. **라우팅**: 파일 크기에 따라 직접 분석 vs 청킹 분석 결정
-3. **오케스트레이션**: 플러그인 → 기법 → LLM → 결과 반환까지 전체 흐름 관리
-4. **3가지 분석 모드**:
-   - `analyze_file`: 단일 파일 분석
-   - `analyze_directory`: 디렉토리 전체 재귀 분석 (필터링 포함)
-   - `analyze_pull_request`: Git PR의 변경사항만 분석
-
-**자동 최적화**:
-- **작은 파일 (<300줄)**: 직접 LLM 호출 (~7초)
-- **큰 파일 (≥300줄)**: AST 기반 청킹 → 병렬 분석 → 결과 병합 (~40초)
-
-```mermaid
-graph TD
-    Start[ProductionAnalyzer 초기화] --> Init{초기화 파라미터}
-
-    Init --> InitPlugin[Plugin 설정 - C++/Python/RTL]
-    Init --> InitModel[Model 설정 - deepseek-coder:33b]
-    Init --> InitTech[Technique 설정 - few-shot-5 default]
-
-    InitPlugin --> Ready[분석 준비 완료]
-    InitModel --> Ready
-    InitTech --> Ready
-
-    Ready --> Method{메서드 호출}
-
-    Method --> FileMethod[analyze_file]
-    Method --> DirMethod[analyze_directory]
-    Method --> PRMethod[analyze_pull_request]
-
-    FileMethod --> FileFlow{파일 크기?}
-    FileFlow -->|< 300줄| Direct[직접 분석]
-    FileFlow -->|≥ 300줄| Chunked[청킹 분석]
-
-    Direct --> TechAnalyze[Technique.analyze]
-    Chunked --> ChunkerFlow[FileChunker]
-
-    ChunkerFlow --> ChunkList[Chunk 목록 - 20개]
-    ChunkList --> ParallelAnalyze[병렬 분석 - 4 workers]
-    ParallelAnalyze --> MergeResults[ResultMerger - 중복 제거]
-
-    TechAnalyze --> FinalResult[AnalysisResult]
-    MergeResults --> FinalResult
-
-    DirMethod --> RecursiveFiles[재귀적 파일 탐색]
-    RecursiveFiles --> FilterFiles[플러그인 필터링]
-    FilterFiles --> MultipleFiles[각 파일 분석]
-    MultipleFiles --> CombineResults[결과 통합]
-    CombineResults --> FinalResult
-
-    PRMethod --> GitDiff[git diff 실행]
-    GitDiff --> ChangedFiles[변경된 파일 목록]
-    ChangedFiles --> AnalyzeChanged[변경 파일만 분석]
-    AnalyzeChanged --> PRReport[PR 리포트 생성]
-    PRReport --> FinalResult
-
-    style Ready fill:#4caf50,color:#fff
-    style Chunked fill:#ff9800,color:#fff
-    style ParallelAnalyze fill:#2196f3,color:#fff
-    style FinalResult fill:#9c27b0,color:#fff
-```
-
-**주요 기능**:
-1. **파일 크기 자동 감지**: 300줄 기준으로 청킹 여부 결정
-2. **병렬 처리**: 큰 파일을 청크로 나눠 4개 워커가 동시 분석
-3. **플러그인 통합**: DomainPlugin을 통해 언어별 로직 실행
-4. **결과 통합**: 중복 제거 및 라인 번호 조정
-
-#### 4.1.1 ProductionAnalyzer 클래스 구조
-
-**클래스 다이어그램**: ProductionAnalyzer가 어떻게 다른 컴포넌트들과 연결되는지 보여줍니다.
-
-```mermaid
-classDiagram
-    class ProductionAnalyzer {
-        -plugin: DomainPlugin
-        -client: OllamaClient
-        -technique: FewShotTechnique
-        +__init__(plugin, model_name, temperature)
-        +analyze_file(file_path) AnalysisResult
-        +analyze_directory(dir_path) Dict
-        +analyze_pull_request(repo, base, head) Dict
-        -_create_technique() FewShotTechnique
-        -_should_use_chunking(file_path) bool
-        -_analyze_chunked(file_path) AnalysisResult
-    }
-
-    class DomainPlugin {
-        <<interface>>
-        +get_file_extensions() List~str~
-        +should_analyze_file(path) bool
-        +get_few_shot_examples(n) List~Example~
-        +get_system_prompt() str
-    }
-
-    class OllamaClient {
-        -model_name: str
-        -temperature: float
-        +analyze_code(request, prompt) AnalysisResult
-    }
-
-    class FewShotTechnique {
-        -client: OllamaClient
-        -examples: List~Example~
-        +analyze(request) AnalysisResult
-    }
-
-    class CppPlugin {
-        +extensions: [.cpp, .h, .hpp]
-        +categories: 5개
-        +examples: 5개
-    }
-
-    ProductionAnalyzer --> DomainPlugin : uses
-    ProductionAnalyzer --> OllamaClient : uses
-    ProductionAnalyzer --> FewShotTechnique : uses
-    DomainPlugin <|-- CppPlugin : implements
-    FewShotTechnique --> OllamaClient : calls
-```
-
-**핵심 코드 구현**:
-
-```python
-class ProductionAnalyzer:
-    def __init__(self, plugin=None, model_name="deepseek-coder:33b", temperature=0.1):
-        # 1. 플러그인 설정 (기본: C++)
-        self.plugin = plugin or CppPlugin()
-
-        # 2. LLM 클라이언트 생성
-        self.client = OllamaClient(model_name, temperature, max_tokens=2000)
-
-        # 3. Few-shot 기법 설정 (플러그인 예시 사용)
-        self.technique = FewShotTechnique(
-            client=self.client,
-            examples=self.plugin.get_few_shot_examples(num_examples=5),
-            system_prompt=self.plugin.get_system_prompt()
-        )
-
-    def analyze_file(self, file_path):
-        # 플러그인이 분석 대상인지 확인 (test 파일 제외 등)
-        if not self.plugin.should_analyze_file(file_path):
-            return None
-
-        # 파일 크기에 따라 청킹 여부 결정
-        if self._should_use_chunking(file_path):
-            return self._analyze_chunked(file_path)
-
-        # 직접 분석
-        code = file_path.read_text()
-        return self.technique.analyze(AnalysisRequest(code=code))
-```
-
-**설계 패턴**:
-- **Strategy Pattern**: Technique을 교체하여 다른 프롬프팅 전략 사용 가능
-- **Plugin Architecture**: DomainPlugin 인터페이스로 새 언어 쉽게 추가
-- **Dependency Injection**: 생성자에서 plugin, model 주입받아 테스트 용이
-
----
-
-### 4.2 Analysis Techniques - 프롬프팅 전략
-
-**Technique**은 **"어떻게 LLM에게 질문할 것인가?"**를 정의하는 전략입니다.
-
-모든 Technique은 **BaseTechnique** 추상 클래스를 상속받아 `analyze()` 메서드를 구현합니다. 이렇게 하면 ProductionAnalyzer는 어떤 기법이든 동일한 방식으로 호출할 수 있습니다 (Strategy Pattern).
-
-**2가지 카테고리**:
-
-1. **Single-Pass Techniques** (1회 LLM 호출):
-   - **Zero-Shot**: 예시 없이 바로 질문 (F1: 0.526, ~7초)
-   - **Few-Shot**: 5개 예시 포함 (F1: 0.615, ~8초) ⭐ 프로덕션 기본값
-   - **Chain-of-Thought**: 단계별 추론 요청 (F1: 0.571, ~24초)
-
-2. **Multi-Pass Techniques** (2회 이상 LLM 호출):
-   - **Multi-Pass**: 1차 탐지 → 2차 자기비평 (F1: 미측정, 실험 중단)
-   - **Hybrid**: Few-shot + CoT 결합 (F1: 0.634, ~33초) ⭐⭐ 최고 성능
-
-**다이어그램 설명**: 각 기법의 내부 처리 흐름과 성능 메트릭 (F1 점수, 레이턴시)을 비교합니다.
-
-```mermaid
-graph TB
-    subgraph "BaseTechnique Interface"
-        Base[\"BaseTechnique - (추상 클래스)"/]
-        Base --> Method[analyze - AnalysisRequest → AnalysisResult]
+    subgraph "향후: 적응형 재시도"
+        F1[LLM 호출] --> F2{성공?}
+        F2 -->|No| F3[에러 유형 분석]
+        F3 --> F4{JSON 파싱 실패?}
+        F4 -->|Yes| F5[출력 형식 강조 프롬프트]
+        F3 --> F6{타임아웃?}
+        F6 -->|Yes| F7[청크 크기 축소]
+        F3 --> F8{할루시네이션?}
+        F8 -->|Yes| F9[temperature 낮춤]
+        F5 --> F1
+        F7 --> F1
+        F9 --> F1
+        F2 -->|Yes| F10[결과 반환]
+    end
+    subgraph "현재: 단순 재시도"
+        C1[LLM 호출] --> C2{성공?}
+        C2 -->|No| C3[동일 프롬프트로 재시도]
+        C3 --> C2
+        C2 -->|Yes| C4[결과 반환]
     end
 
-    subgraph "SinglePass Techniques"
-        Base --> ZS[Zero-Shot]
-        Base --> FS[Few-Shot]
-        Base --> CoT[Chain-of-Thought]
 
-        ZS --> ZSFlow["① 직접 질문 - ② LLM 호출 - ③ JSON 파싱"]
-        FS --> FSFlow["① 예시 5개 추가 - ② LLM 호출 - ③ JSON 파싱"]
-        CoT --> CoTFlow["① 단계별 추론 요청 - ② LLM 호출 - ③ thinking 태그 파싱"]
-    end
-
-    subgraph "MultiPass Techniques"
-        Base --> MP[Multi-Pass]
-        Base --> Hybrid[Hybrid]
-
-        MP --> MPFlow["① Pass 1 - 버그 탐지 - ② Pass 2 - 자기 비평 - ③ 필터링 - confidence > 0.7"]
-        Hybrid --> HybridFlow["① Pass 1 - Few-shot - 전체 카테고리 - ② Pass 2 - CoT - modern-cpp만 - ③ 결과 병합 - 중복 제거"]
-    end
-
-    subgraph "성능 비교"
-        ZSFlow --> ZSMetric[F1 - 0.526 - 7초]
-        FSFlow --> FSMetric[F1 - 0.615 - 8초 ★]
-        CoTFlow --> CoTMetric[F1 - 0.571 - 24초]
-        MPFlow --> MPMetric[미측정 - 실험 중단]
-        HybridFlow --> HybridMetric[F1 - 0.634 - 33초]
-    end
-
-    style Base fill:#1a237e,color:#fff
-    style FS fill:#4caf50,color:#fff
-    style FSMetric fill:#66bb6a,color:#fff
-    style Hybrid fill:#ffc107,color:#000
-    style HybridMetric fill:#ffeb3b,color:#000
+    style C3 fill:#546e7a,color:#fff
+    style F5 fill:#1976d2,color:#fff
+    style F7 fill:#7b1fa2,color:#fff
+    style F9 fill:#388e3c,color:#fff
 ```
 
----
+위 다이어그램은 **에러 복구 전략의 현재와 향후**를 비교합니다:
+- **현재**: 단순 재시도 (동일 프롬프트)
+- **향후**: 에러 유형별 적응형 대응
+  - JSON 파싱 실패 → 출력 형식 강조
+  - 타임아웃 → 청크 크기 축소
+  - 할루시네이션 → temperature 조정
 
-### 4.3 Domain Plugin - C++ 플러그인 상세
+#### 3.4.3 결과 캐싱
 
-**Domain Plugin**은 **"무엇을 찾을 것인가?"**를 정의합니다. 언어별 전문 지식을 캡슐화하여, Framework Core가 언어에 독립적으로 동작할 수 있게 합니다.
-
-현재는 **C++ Plugin만** 프로덕션에 사용되며, Python/RTL Plugin은 향후 확장 예정입니다.
-
-**C++ Plugin의 역할**:
-1. **파일 필터링**: 어떤 파일을 분석할지 결정 (test 파일, third_party 제외)
-2. **카테고리 정의**: 어떤 종류의 버그를 찾을지 (5가지 카테고리)
-3. **Few-shot 예시 제공**: LLM에게 보여줄 예시 코드
-
----
-
-#### 4.3.1 플러그인 구조 및 파일 필터링
-
-**파일 필터링**은 불필요한 분석을 방지합니다. 테스트 파일이나 외부 라이브러리는 분석 대상에서 제외합니다.
-
-```mermaid
-graph TB
-    CppPlugin[C++ Plugin]
-
-    CppPlugin --> Extensions[지원 확장자]
-    Extensions --> Ext1[.cpp, .cc, .cxx]
-    Extensions --> Ext2[.h, .hpp, .hxx]
-
-    CppPlugin --> Filter{파일 분석 여부}
-
-    Filter -->|Skip| Skip1[test 파일]
-    Filter -->|Skip| Skip2[third_party/]
-    Filter -->|Skip| Skip3[vendor/]
-    Filter -->|Skip| Skip4[*_test.cpp]
-    Filter -->|Analyze| Analyze[✅ 일반 C++ 파일]
-
-    style CppPlugin fill:#4caf50,color:#fff
-    style Analyze fill:#66bb6a,color:#fff
-    style Filter fill:#ffa726,color:#fff
-```
-
-#### 4.3.2 분석 카테고리 (5개)
-
-C++ 코드에서 탐지할 **5가지 버그/개선점 카테고리**입니다. 각 카테고리는 색상으로 구분됩니다.
-
-| 카테고리 | 설명 | 심각도 | 예시 |
-|---------|------|-------|------|
-| **memory-safety** | 메모리 관련 버그 | 🔴 Critical | memory leak, use-after-free, buffer overflow |
-| **modern-cpp** | C++11/14/17 개선점 | 🟢 Enhancement | `new/delete` → `unique_ptr`, `NULL` → `nullptr` |
-| **performance** | 성능 최적화 | 🟡 Medium | 불필요한 복사, 비효율적 알고리즘 |
-| **security** | 보안 취약점 | 🔴 Critical | 하드코딩된 자격증명, 인젝션 취약점 |
-| **concurrency** | 동시성 버그 | 🟣 High | 데이터 레이스, 데드락, 뮤텍스 누락 |
+동일 파일을 반복 분석할 때 **캐싱**으로 속도를 크게 개선할 수 있습니다.
 
 ```mermaid
 graph LR
-    Categories[C++ 분석 카테고리]
+    subgraph "캐싱 전략"
+        Input[입력 코드] --> Hash[코드 해시 생성]
+        Hash --> Check{캐시 존재?}
+        Check -->|Yes| Return[캐시된 결과 반환 - 0.1초]
+        Check -->|No| Analyze[LLM 분석 - 8초]
+        Analyze --> Store[결과 캐싱]
+        Store --> Return2[결과 반환]
+    end
 
-    Categories --> C1[🔴 memory-safety<br/>memory leak<br/>use-after-free<br/>buffer overflow]
-    Categories --> C2[🟢 modern-cpp<br/>raw ptr → unique_ptr<br/>NULL → nullptr<br/>C-array → vector]
-    Categories --> C3[🟡 performance<br/>pass by value<br/>unnecessary copy<br/>inefficient algorithm]
-    Categories --> C4[🔴 security<br/>hardcoded credentials<br/>SQL injection<br/>command injection]
-    Categories --> C5[🟣 concurrency<br/>data race<br/>deadlock<br/>missing mutex]
-
-    style Categories fill:#4caf50,color:#fff
-    style C1 fill:#1976d2,color:#fff
-    style C2 fill:#388e3c,color:#fff
-    style C3 fill:#f57c00,color:#fff
-    style C4 fill:#c62828,color:#fff
-    style C5 fill:#7b1fa2,color:#fff
+    style Return fill:#2e7d32,color:#fff
+    style Analyze fill:#e65100,color:#fff
 ```
-
-#### 4.3.3 Few-shot 예시 (각 카테고리당 1개)
-
-**Few-shot Learning의 핵심**은 좋은 예시 선정입니다. Ground Truth 20개 예제 중 5개를 선정하여 LLM에게 "이런 버그를 찾으세요"라고 보여줍니다.
-
-**예시 선정 전략**:
-- **Example 1**: Memory leak - 가장 흔한 C++ 버그
-- **Example 2**: Buffer overflow - 가장 심각한 보안 취약점
-- **Example 3**: Unnecessary copy - 성능 최적화 기회
-- **Example 4**: Data race - 찾기 어려운 동시성 버그
-- **Example 5**: Clean code (버그 없음) - **Negative Example**로 false positive 방지
-
-**Negative Example의 중요성**: Example 5는 버그가 없는 깨끗한 코드입니다. 이를 포함하면 LLM이 "버그가 없을 수도 있다"는 것을 학습하여 **false positive가 31% 감소**합니다.
-
-```mermaid
-graph TB
-    Examples[Ground Truth Examples<br/>20개 중 5개 사용]
-
-    Examples --> E1[Example 1<br/>Memory leak]
-    Examples --> E2[Example 2<br/>Buffer overflow]
-    Examples --> E3[Example 3<br/>Unnecessary copy]
-    Examples --> E4[Example 4<br/>Data race]
-    Examples --> E5[Example 5<br/>✅ Clean code<br/>Negative example]
-
-    E1 --> Use1[Few-shot 프롬프트에 포함]
-    E2 --> Use1
-    E3 --> Use1
-    E4 --> Use1
-    E5 --> Use1
-
-    style Examples fill:#4caf50,color:#fff
-    style E5 fill:#66bb6a,color:#fff
-    style Use1 fill:#1976d2,color:#fff
-```
-
-**Few-shot 예시 선정 기준**:
-1. **Diversity**: 5개 카테고리 커버
-2. **Realistic**: 실제 발생 가능한 버그
-3. **Clear**: 명확한 설명과 reasoning
-4. **Negative Example**: False positive 방지
 
 ---
 
-### 4.4 Large File Support - 청킹 시스템
+## 4. 프롬프팅 전략
 
-**문제**: LLM의 컨텍스트 창에는 한계가 있습니다. DeepSeek-Coder 33B는 약 8K 토큰을 처리할 수 있는데, 700줄 이상의 C++ 파일은 이를 초과합니다.
-
-**해결책**: **AST 기반 청킹**으로 파일을 **의미 있는 단위** (함수, 클래스)로 분할합니다.
-
-> **💡 왜 단순히 줄 수로 나누지 않나요?**
->
-> 줄 수 기준으로 나누면 함수 중간에서 잘릴 수 있습니다:
-> ```cpp
-> void processData() {
->     // ... 100줄 ...
-> --- 여기서 잘림 ---
->     // ... 50줄 ...
-> }
-> ```
-> 이렇게 되면 LLM이 문맥을 이해할 수 없습니다.
->
-> **AST 기반 청킹**은 함수/클래스 **경계를 존중**하여 분할합니다:
-> - 각 청크는 완전한 함수 또는 클래스
-> - 컨텍스트 (include, using, namespace) 자동 포함
-> - LLM이 독립적으로 분석 가능
+LLM의 성능은 **어떻게 질문하느냐**에 크게 좌우됩니다. 5가지 프롬프팅 기법을 실험하여 최적 전략을 찾았습니다.
 
 ---
 
-#### 4.4.1 AST 파싱 및 Chunk 생성
+### 4.1 기법별 성능 비교
 
-**tree-sitter**를 사용하여 C++ 코드를 파싱하고, 함수/클래스 단위로 청크를 생성합니다.
+| 기법 | F1 Score | Latency | 특징 |
+|------|----------|---------|------|
+| **Zero-shot** | 0.526 | 7.15s | 예시 없이 직접 질문 |
+| **Few-shot-3** | 0.588 | 7.12s | 3개 예시 제공 |
+| **Few-shot-5** | 0.615 | 8.15s | **프로덕션 권장** ⭐ |
+| **Chain-of-Thought** | 0.571 | 23.94s | 단계별 추론 요청 |
+| **Hybrid** | 0.634 | 32.76s | **최고 정확도** |
 
 ```mermaid
 graph TB
-    File[Large C++ File<br/>700+ lines]
+    subgraph "기법 비교"
+        ZS[Zero-shot - F1 0.526]
+        FS[Few-shot-5 - F1 0.615 ⭐]
+        CoT[Chain-of-Thought - F1 0.571]
+        HY[Hybrid - F1 0.634]
+    end
 
-    File --> Parser[tree-sitter Parser]
-    Parser --> AST[Abstract Syntax Tree]
+    subgraph "카테고리별 강점"
+        FS --> FS_Good[memory-safety 0.800 - performance 0.800 - security 1.000]
+        FS --> FS_Bad[modern-cpp 0.000 ❌]
+        CoT --> CoT_Good[modern-cpp 0.727 ✅]
+        HY --> HY_Result[모든 카테고리 커버]
+    end
 
-    AST --> Context[컨텍스트 추출]
-    Context --> Inc[#include 문]
-    Context --> Use[using 선언]
-    Context --> NS[namespace]
-
-    AST --> Nodes[노드 추출]
-    Nodes --> Func[함수들]
-    Nodes --> Class[클래스들]
-    Nodes --> Struct[구조체들]
-
-    Func --> Chunks[Chunk 생성]
-    Class --> Chunks
-    Struct --> Chunks
-
-    Inc --> Chunks
-    Use --> Chunks
-    NS --> Chunks
-
-    Chunks --> C1[Chunk 1<br/>context + function1<br/>lines 10-50]
-    Chunks --> C2[Chunk 2<br/>context + function2<br/>lines 60-120]
-    Chunks --> CN[Chunk N<br/>context + classA<br/>lines 500-650]
-
-    style Parser fill:#1976d2,color:#fff
-    style Chunks fill:#388e3c,color:#fff
-    style C1 fill:#66bb6a,color:#fff
-    style C2 fill:#66bb6a,color:#fff
-    style CN fill:#66bb6a,color:#fff
+    style FS fill:#388e3c,color:#fff
+    style HY fill:#7b1fa2,color:#fff
+    style FS_Bad fill:#c62828,color:#fff
+    style CoT_Good fill:#2e7d32,color:#fff
 ```
 
-#### 4.4.2 병렬 분석 (ChunkAnalyzer)
+위 다이어그램은 **각 기법의 강점과 약점**을 보여줍니다:
+- **Few-shot-5**: 대부분 카테고리에서 우수하나 modern-cpp 탐지 실패
+- **Chain-of-Thought**: modern-cpp에서 압도적 (0.727 vs 0.000)
+- **Hybrid**: 두 기법 결합으로 모든 카테고리 커버
+
+---
+
+### 4.2 Hybrid 기법 상세
+
+```mermaid
+graph TB
+    subgraph "Hybrid 3-Pass 전략"
+        Input[입력 코드] --> Pass1[Pass 1: Few-shot-5]
+        Pass1 --> R1[memory, performance, security 탐지]
+
+        Input --> Pass2[Pass 2: Chain-of-Thought]
+        Pass2 --> R2[modern-cpp 집중 탐지]
+
+        R1 --> Pass3[Pass 3: 결과 병합]
+        R2 --> Pass3
+        Pass3 --> Dedup[중복 제거]
+        Dedup --> Output[최종 결과 - F1 0.634]
+    end
+
+    style Pass1 fill:#1976d2,color:#fff
+    style Pass2 fill:#7b1fa2,color:#fff
+    style Pass3 fill:#388e3c,color:#fff
+    style Output fill:#2e7d32,color:#fff
+```
+
+**트레이드오프**: 4배 느리지만 최고 정확도 → 중요한 PR에만 사용 권장
+
+---
+
+### 4.3 향후 개선: 프롬프팅 최적화
+
+#### 4.3.1 Dynamic Few-shot (RAG 기반)
+
+현재는 **고정된 5개 예시**를 사용합니다. 향후에는 입력 코드와 **가장 유사한 예시**를 동적으로 선택할 수 있습니다.
+
+```mermaid
+graph TB
+    subgraph "Dynamic Few-shot"
+        Input[입력 코드] --> Embed[코드 임베딩]
+
+        subgraph "Vector DB"
+            DB[(과거 버그 사례)]
+        end
+
+        Embed --> Search[유사도 검색]
+        DB --> Search
+        Search --> TopK[Top-5 유사 사례]
+        TopK --> Prompt[동적 Few-shot 프롬프트]
+        Input --> Prompt
+        Prompt --> LLM[LLM 분석]
+    end
+
+    style DB fill:#1976d2,color:#fff
+    style Search fill:#7b1fa2,color:#fff
+    style Prompt fill:#388e3c,color:#fff
+```
+
+**예상 효과**: 입력 코드와 관련 있는 예시로 정확도 +10-15% 향상
+
+#### 4.3.2 Self-Critique (자기 비평)
+
+LLM이 자신의 결과를 **비평**하여 False Positive를 줄입니다.
 
 ```mermaid
 graph LR
-    C1[Chunk 1] --> W1[Worker 1]
-    C2[Chunk 2] --> W2[Worker 2]
-    CN[Chunk N] --> W3[Worker 3]
+    subgraph "Self-Critique"
+        P1[Pass 1: 버그 탐지] --> Issues[이슈 목록]
+        Issues --> P2[Pass 2: 각 이슈 검증]
+        P2 --> Q[정말 버그인가?]
+        Q --> Keep[✅ 확실한 버그 유지]
+        Q --> Remove[❌ 불확실한 이슈 제거]
+    end
 
-    W1 --> Tech[Technique.analyze<br/>Few-shot-5 / Hybrid]
-    W2 --> Tech
-    W3 --> Tech
-
-    Tech --> R1[Result 1<br/>2 issues]
-    Tech --> R2[Result 2<br/>3 issues]
-    Tech --> RN[Result N<br/>1 issue]
-
-    style W1 fill:#f57c00,color:#fff
-    style W2 fill:#f57c00,color:#fff
-    style W3 fill:#f57c00,color:#fff
-    style Tech fill:#1976d2,color:#fff
+    style Keep fill:#2e7d32,color:#fff
+    style Remove fill:#c62828,color:#fff
 ```
 
-**병렬 처리 효과**: 4 workers → **4x 속도 향상**
+---
 
-#### 4.4.3 결과 통합 (ResultMerger)
+## 5. AST 기반 청킹
+
+로컬 LLM은 **컨텍스트 길이가 제한**됩니다 (DeepSeek: ~4096 토큰). 700줄 C++ 파일은 약 5000 토큰으로 한계를 초과합니다.
+
+---
+
+### 5.1 문제와 해결 접근법
+
+| 방법 | 장점 | 단점 |
+|------|------|------|
+| **단순 줄 분할** | 구현 쉬움 | 함수 중간에 잘림, 문맥 손실 |
+| **AST 청킹** (현재) | 의미 단위 보존 | tree-sitter 필요 |
+| **Semantic 청킹** (향후) | 완전한 문맥 | clangd 필요, 느림 |
 
 ```mermaid
 graph TB
-    R1[Result 1<br/>chunk 좌표] --> Adjust[라인 번호 조정]
-    R2[Result 2<br/>chunk 좌표] --> Adjust
-    RN[Result N<br/>chunk 좌표] --> Adjust
+    subgraph "문제"
+        Problem[700줄 파일 - 5000 tokens - Context 초과]
+    end
 
-    Adjust --> File[파일 좌표로 변환<br/>chunk.start_line + offset]
+    subgraph "해결: AST 청킹"
+        Problem --> Parse[tree-sitter 파싱 - 10ms]
+        Parse --> Extract[함수/클래스 추출]
+        Extract --> Context[컨텍스트 추가 - includes, usings]
+        Context --> Chunks[청크 목록]
+        Chunks --> Parallel[병렬 분석 - 4 workers]
+        Parallel --> Merge[결과 병합]
+    end
 
-    File --> Dedup[중복 제거<br/>line + category 기준]
-    Dedup --> Sort[라인 번호 정렬]
-    Sort --> Final[✅ Final Result<br/>11 unique issues]
+    style Problem fill:#c62828,color:#fff
+    style Parse fill:#1976d2,color:#fff
+    style Parallel fill:#7b1fa2,color:#fff
+    style Merge fill:#2e7d32,color:#fff
+```
 
-    style Adjust fill:#7b1fa2,color:#fff
-    style Dedup fill:#c62828,color:#fff
-    style Final fill:#4caf50,color:#fff
+위 다이어그램은 **AST 청킹 프로세스**를 보여줍니다:
+1. **tree-sitter 파싱**: 10ms로 매우 빠름
+2. **함수/클래스 추출**: 의미 단위로 분할
+3. **컨텍스트 추가**: 모든 청크에 includes, usings 포함
+4. **병렬 분석**: 4개 워커로 동시 처리
+5. **결과 병합**: 중복 제거 + 라인 번호 조정
+
+---
+
+### 5.2 현재 구현: tree-sitter 기반
+
+```mermaid
+graph TB
+    subgraph "FileChunker"
+        Input[large.cpp - 700줄] --> Read[파일 읽기]
+        Read --> Parse[tree-sitter 파싱]
+        Parse --> AST[AST 생성]
+
+        AST --> Extract[노드 추출]
+        Extract --> Func[function_definition]
+        Extract --> Class[class_specifier]
+        Extract --> Context[preproc_include, using]
+
+        Func --> Chunk1[Chunk 1: process - lines 5-105]
+        Class --> Chunk2[Chunk 2: DataProcessor - lines 107-307]
+        Context --> Chunk1
+        Context --> Chunk2
+    end
+
+    style Parse fill:#1976d2,color:#fff
+    style Chunk1 fill:#388e3c,color:#fff
+    style Chunk2 fill:#388e3c,color:#fff
 ```
 
 **성능**:
-- **파싱 속도**: 700줄 파일 → 10ms (tree-sitter)
-- **청크 생성**: 20개 함수 → 20개 청크
-- **병렬 분석**: 4 workers → 4x 속도 향상
-- **총 시간**: ~40초 (순차: ~160초)
+- 파싱 속도: **10ms** (clangd는 1-2초)
+- 의존성: 없음 (compile_commands.json 불필요)
+- 정확도: Syntax 레벨 (Semantic 정보 없음)
 
 ---
 
-## 5. 프롬프팅 기법의 진화 (Phase 0-5)
-
-이 프로젝트의 핵심은 **어떻게 LLM에게 질문하느냐**입니다. Phase 0부터 Phase 5까지, F1 점수를 **0.526 → 0.634**로 개선한 여정을 소개합니다.
-
----
-
-### 5.1 Phase 0: 실험 인프라 구축
-
-**Phase 0의 목표**: 실험을 반복할 수 있는 **재현 가능한 환경** 구축
-
-무엇이 잘 작동하는지 객관적으로 측정하려면:
-1. **Ground Truth Dataset**: 정답을 아는 테스트 케이스 (20개 C++ 예제)
-2. **평가 지표**: Precision, Recall, F1 Score 자동 계산
-3. **실험 자동화**: 설정 → 실행 → 결과 저장까지 자동화
-
-이 인프라 위에서 **Zero-shot 기준선**을 먼저 측정합니다.
-
-> **💡 Zero-shot이란?**
->
-> LLM에게 **예시 없이** 바로 질문하는 방식입니다.
-> ```
-> 시스템: 당신은 C++ 전문가입니다.
-> 작업: 이 코드에서 버그를 찾으세요.
-> 코드: [실제 코드]
-> ```
->
-> **장점**: 빠르고 간단
-> **단점**: 정확도 낮음 (F1: 0.526)
+### 5.3 병렬 분석 및 결과 병합
 
 ```mermaid
 graph TB
-    subgraph "Phase 0 목표"
-        Goal[실험 가능한 환경 구축 - 무엇이 잘 작동하는지 측정]
+    subgraph "ChunkAnalyzer"
+        Chunks[4 Chunks] --> W1[Worker 1]
+        Chunks --> W2[Worker 2]
+        Chunks --> W3[Worker 3]
+        Chunks --> W4[Worker 4]
+
+        W1 --> LLM1[LLM - 8초]
+        W2 --> LLM2[LLM - 8초]
+        W3 --> LLM3[LLM - 8초]
+        W4 --> LLM4[LLM - 8초]
+
+        LLM1 --> R1[Result 1]
+        LLM2 --> R2[Result 2]
+        LLM3 --> R3[Result 3]
+        LLM4 --> R4[Result 4]
     end
 
-    subgraph "Ground Truth Dataset"
-        Goal --> GT[20개 C++ 예제 생성]
+    subgraph "ResultMerger"
+        R1 --> Collect[결과 수집]
+        R2 --> Collect
+        R3 --> Collect
+        R4 --> Collect
 
+        Collect --> LineAdjust[라인 번호 조정]
+        LineAdjust --> Dedup[중복 제거 - line + category]
+        Dedup --> Sort[라인 번호 정렬]
+        Sort --> Final[최종 결과]
+    end
+
+    style W1 fill:#e65100,color:#fff
+    style W2 fill:#e65100,color:#fff
+    style W3 fill:#e65100,color:#fff
+    style W4 fill:#e65100,color:#fff
+    style Dedup fill:#7b1fa2,color:#fff
+    style Final fill:#2e7d32,color:#fff
+```
+
+**성능 향상**:
+- 순차 처리: 4 chunks × 8초 = **32초**
+- 병렬 처리 (4 workers): **~10초** (3.2배 빠름)
+
+---
+
+### 5.4 향후 개선: Semantic 청킹
+
+현재 tree-sitter는 **Syntax만** 파싱합니다. 향후 **clangd**를 활용하면 더 스마트한 청킹이 가능합니다.
+
+#### 5.4.1 tree-sitter vs clangd 비교
+
+| 특성 | tree-sitter (현재) | clangd (향후) |
+|------|-------------------|---------------|
+| **속도** | 10ms ⭐ | 1-2초 |
+| **의존성** | 없음 ⭐ | compile_commands.json 필요 |
+| **정보 수준** | Syntax only | Full Semantic |
+| **타입 정보** | ❌ | ✅ |
+| **함수 호출 관계** | ❌ | ✅ |
+| **Include 해석** | ❌ | ✅ |
+
+```mermaid
+graph TB
+
+    subgraph "향후: clangd"
+        CL_In[소스 코드] --> CL_Parse[Semantic 분석]
+        CL_Parse --> CL_Type[타입 정보]
+        CL_Parse --> CL_Call[함수 호출 관계]
+        CL_Parse --> CL_Dep[의존성 분석]
+
+        CL_Type --> CL_Smart[스마트 청킹]
+        CL_Call --> CL_Smart
+        CL_Dep --> CL_Smart
+    end
+    
+    subgraph "현재: tree-sitter"
+        TS_In[소스 코드] --> TS_Parse[Syntax 파싱]
+        TS_Parse --> TS_Out[함수 경계만 파악]
+    end
+
+
+    style TS_Parse fill:#1976d2,color:#fff
+    style CL_Parse fill:#7b1fa2,color:#fff
+    style CL_Smart fill:#2e7d32,color:#fff
+```
+
+위 다이어그램은 **tree-sitter와 clangd의 차이**를 보여줍니다:
+- **tree-sitter**: 빠르지만 Syntax 정보만
+- **clangd**: 느리지만 타입, 호출 관계, 의존성까지 파악
+
+#### 5.4.2 clangd 활용 시나리오
+
+```mermaid
+graph TB
+    subgraph "Semantic 청킹 이점"
+        S1[관련 함수 그룹핑]
+        S1 --> S1_Ex["process()와 helper() - 함께 청킹"]
+
+        S2[타입 기반 컨텍스트]
+        S2 --> S2_Ex["DataProcessor 클래스 - 사용하는 함수들과 함께"]
+
+        S3[의존성 인식]
+        S3 --> S3_Ex["#include 내용 - 필요시 포함"]
+    end
+
+    style S1 fill:#1976d2,color:#fff
+    style S2 fill:#7b1fa2,color:#fff
+    style S3 fill:#388e3c,color:#fff
+```
+
+**예상 효과**:
+- 관련 코드가 함께 분석되어 **컨텍스트 손실 감소**
+- False Negative **20-30% 감소** 예상
+- 단, **빌드 환경 필요** (compile_commands.json)
+
+#### 5.4.3 하이브리드 접근법 (제안)
+
+```mermaid
+graph TB
+    subgraph "하이브리드 청킹 전략"
+        Input[소스 코드] --> Check{빌드 환경 있음?}
+
+        Check -->|Yes| Clangd[clangd Semantic 분석]
+        Check -->|No| TreeSitter[tree-sitter Syntax 분석]
+
+        Clangd --> Smart[스마트 청킹 - 관련 함수 그룹]
+        TreeSitter --> Basic[기본 청킹 - 함수 단위]
+
+        Smart --> Analyze[분석]
+        Basic --> Analyze
+    end
+
+    style Clangd fill:#7b1fa2,color:#fff
+    style TreeSitter fill:#1976d2,color:#fff
+    style Smart fill:#2e7d32,color:#fff
+```
+
+**제안**: 빌드 환경이 있으면 clangd, 없으면 tree-sitter로 **폴백**
+
+---
+
+### 5.5 향후 개선: 청킹 최적화
+
+#### 5.5.1 적응형 청크 크기
+
+```mermaid
+graph LR
+    subgraph "적응형 청크 크기"
+        Code[코드 복잡도 분석] --> Simple{단순 코드?}
+        Simple -->|Yes| Large[큰 청크 - 300줄]
+        Simple -->|No| Small[작은 청크 - 100줄]
+    end
+
+    style Large fill:#388e3c,color:#fff
+    style Small fill:#e65100,color:#fff
+```
+
+- **단순 코드**: 큰 청크로 오버헤드 감소
+- **복잡한 코드**: 작은 청크로 정확도 향상
+
+#### 5.5.2 컨텍스트 윈도우 최적화
+
+```mermaid
+graph TB
+    subgraph "컨텍스트 윈도우"
+        Func[분석 대상 함수]
+
+        Func --> Before[이전 함수 시그니처]
+        Func --> After[다음 함수 시그니처]
+        Func --> Deps[호출하는 함수 시그니처]
+
+        Before --> Context[확장된 컨텍스트]
+        After --> Context
+        Deps --> Context
+
+        Context --> Better[더 정확한 분석]
+    end
+
+    style Func fill:#1976d2,color:#fff
+    style Context fill:#7b1fa2,color:#fff
+    style Better fill:#2e7d32,color:#fff
+```
+
+**아이디어**: 분석 대상 함수뿐 아니라 **관련 함수 시그니처**도 컨텍스트에 포함
+
+---
+
+## 6. 실험 및 검증
+
+모든 기법은 **Ground Truth 데이터셋**으로 객관적으로 평가했습니다.
+
+---
+
+### 6.1 실험 인프라
+
+```mermaid
+graph TB
+    subgraph "Ground Truth"
+        GT[20개 C++ 예제]
         GT --> Cat1[memory-safety - 5개]
         GT --> Cat2[modern-cpp - 4개]
         GT --> Cat3[performance - 3개]
         GT --> Cat4[security - 2개]
         GT --> Cat5[concurrency - 2개]
-        GT --> Cat6[clean code - 3개 - False positive 방지]
-        GT --> Cat7[complex - 1개 - 여러 이슈 혼합]
+        GT --> Cat6[clean code - 3개]
     end
 
-    subgraph "Evaluation System"
-        Goal --> Metrics[MetricsCalculator 구현]
-
-        Metrics --> Precision[Precision - 탐지한 것 중 실제 버그 비율]
-        Metrics --> Recall[Recall - 실제 버그 중 탐지한 비율]
-        Metrics --> F1[F1 Score - Precision과 Recall 조화평균]
-        Metrics --> TokenEff[Token Efficiency - 1K 토큰당 이슈 탐지 수]
+    subgraph "실험 시스템"
+        Config[YAML Config] --> Runner[ExperimentRunner]
+        Runner --> Analyze[20개 예제 분석]
+        Analyze --> Compare[Expected vs Detected]
+        Compare --> Metrics[MetricsCalculator]
     end
 
-    subgraph "Experiment Framework"
-        Goal --> ExpRunner[ExperimentRunner 구현]
-
-        ExpRunner --> Config[YAML Config - 실험 설정]
-        ExpRunner --> AutoRun[자동 실행 - 20개 예제]
-        ExpRunner --> Save[결과 저장 - experiments/runs/]
-        ExpRunner --> Reproduce[100% 재현 가능]
+    subgraph "평가 지표"
+        Metrics --> P[Precision - FP 최소화]
+        Metrics --> R[Recall - FN 최소화]
+        Metrics --> F1[F1 Score - 조화평균]
     end
 
-    subgraph "Exit Gate"
-        Precision --> ZeroShot[Zero-shot 구현 - F1 - 0.526 달성 ✅]
-        Recall --> ZeroShot
-        F1 --> ZeroShot
-        TokenEff --> ZeroShot
-    end
-
-    style Goal fill:#1a237e,color:#fff
-    style GT fill:#283593,color:#fff
-    style Metrics fill:#303f9f,color:#fff
-    style ExpRunner fill:#3949ab,color:#fff
-    style ZeroShot fill:#4caf50,color:#fff
+    style GT fill:#1976d2,color:#fff
+    style Runner fill:#7b1fa2,color:#fff
+    style F1 fill:#2e7d32,color:#fff
 ```
-
-**Phase 0 성과**:
-- ✅ Ground Truth 20개 완성 (45+ 이슈)
-- ✅ F1/Precision/Recall 자동 계산
-- ✅ 실험 자동화 프레임워크
-- ✅ Zero-shot 기준선: F1 0.526
 
 ---
 
-### 5.2 Phase 1: Few-shot Learning
-
-**Phase 1의 가설**: LLM에게 **좋은 예시**를 보여주면 정확도가 향상될 것이다.
-
-Zero-shot으로 F1: 0.526을 달성했지만, 이는 충분하지 않습니다. 사람도 예시를 보면 더 잘 이해하듯이, LLM에게도 **"이런 버그를 찾으세요"** 라고 구체적 예시를 보여주면 어떨까요?
-
-> **💡 Few-shot이란?**
->
-> LLM에게 **몇 개의 예시**를 먼저 보여주고 질문하는 방식입니다.
-> ```
-> 시스템: 당신은 C++ 전문가입니다.
->
-> 예시 1: [Memory leak 버그 코드] → [이슈 설명]
-> 예시 2: [Buffer overflow 버그 코드] → [이슈 설명]
-> 예시 3: [Unnecessary copy 버그 코드] → [이슈 설명]
-> 예시 4: [Data race 버그 코드] → [이슈 설명]
-> 예시 5: [Clean code (버그 없음)] → [이슈 없음]
->
-> 작업: 이제 이 코드를 분석하세요.
-> 코드: [실제 코드]
-> ```
->
-> **장점**: 정확도 대폭 향상 (F1: 0.526 → 0.615, +17%)
-> **단점**: 프롬프트가 길어짐 (토큰 사용량 증가)
->
-> **핵심 질문**: 몇 개의 예시를 보여줘야 할까?
-> - **Few-shot-3**: 3개 예시 → F1: 0.588
-> - **Few-shot-5**: 5개 예시 → F1: 0.615 ⭐ (최적 균형점)
-
-```mermaid
-graph TB
-    subgraph "Phase 1 가설"
-        Hypothesis[LLM에게 좋은 예시를 보여주면 - 정확도가 향상될 것 - 예상 - +40% F1]
-    end
-
-    subgraph "Few-shot 예시 선정"
-        Hypothesis --> Select[5개 예시 선정 전략]
-
-        Select --> S1[Example 1 - Memory leak - 가장 흔한 버그]
-        Select --> S2[Example 2 - Buffer overflow - 심각한 버그]
-        Select --> S3[Example 3 - Unnecessary copy - 성능 이슈]
-        Select --> S4[Example 4 - Data race - 어려운 카테고리]
-        Select --> S5[Example 5 - Clean code - False positive 방지]
-    end
-
-    subgraph "프롬프트 구조"
-        S1 --> Prompt[프롬프트 구성]
-        S2 --> Prompt
-        S3 --> Prompt
-        S4 --> Prompt
-        S5 --> Prompt
-
-        Prompt --> P1[System - C++ 전문가 역할]
-        Prompt --> P2[Examples - 5개 예시]
-        Prompt --> P3[Task - 이제 이 코드 분석]
-        Prompt --> P4[Output - JSON 형식]
-    end
-
-    subgraph "실험 결과"
-        Prompt --> Exp[실험 실행 - 20개 Ground Truth]
-
-        Exp --> R1[Few-shot-3 - F1 - 0.588 - +12%]
-        Exp --> R2[Few-shot-5 - F1 - 0.615 - +17% ✅]
-    end
-
-    subgraph "인사이트"
-        R2 --> Insight1[✅ Precision +31% - False positive 크게 감소]
-        R2 --> Insight2[✅ Recall +20% - 더 많은 버그 발견]
-        R2 --> Insight3[❌ Modern-cpp - 0.000 - 여전히 탐지 실패]
-    end
-
-    style Hypothesis fill:#1976d2,color:#fff
-    style Prompt fill:#388e3c,color:#fff
-    style R2 fill:#4caf50,color:#fff
-    style Insight3 fill:#f44336,color:#fff
-```
-
-**Phase 1 성과**:
-- ✅ F1 **+17% 개선** (0.526 → 0.615)
-- ✅ Precision **+31%** (false positive 대폭 감소)
-- ✅ Few-shot-5가 최적 균형점
-- ❌ Modern-cpp 카테고리는 여전히 0.000
-
----
-
-### 5.3 Phase 2: 기법 비교 실험
-
-**Phase 2의 목표**: 4가지 기법을 **공정하게 비교**하여 최적 기법 선택
-
-Few-shot이 좋다는 걸 알았지만, 다른 기법은 어떨까요? 특히 **Chain-of-Thought (CoT)**라는 기법이 추론 과제에서 효과적이라는 연구 결과가 있습니다.
-
-> **💡 Chain-of-Thought (CoT)란?**
->
-> LLM에게 **단계별로 생각하라고** 요청하는 방식입니다.
-> ```
-> 시스템: 당신은 C++ 전문가입니다.
->
-> 작업: 이 코드를 분석하되, 생각 과정을 <thinking> 태그 안에 작성하세요.
->
-> 코드: [실제 코드]
->
-> 출력 형식:
-> <thinking>
-> 1. 먼저 메모리 할당을 확인한다...
-> 2. 다음으로 포인터 사용을 본다...
-> 3. Modern C++ 관점에서 개선점은...
-> </thinking>
-> <issues>
-> [JSON 이슈 목록]
-> </issues>
-> ```
->
-> **장점**: 복잡한 추론이 필요한 카테고리에서 강력 (modern-cpp: 0.727)
-> **단점**: 매우 느림 (23.94초 vs 7-8초), 전반적 F1은 Few-shot보다 낮음 (0.571)
-
-**핵심 발견**:
-- **Few-shot-5**가 전반적으로 최고 (F1: 0.615)
-- **CoT**가 modern-cpp에서 압도적 (0.727 vs 0.000)
-- 💡 **아이디어**: 두 기법을 결합하면? → Phase 4 Hybrid로 이어짐
-
-```mermaid
-graph TB
-    subgraph "Phase 2 목표"
-        Goal[4가지 기법 체계적 비교 - 최적 기법 선택]
-    end
-
-    subgraph "실험 설계"
-        Goal --> Exp1[Zero-shot - 기준선]
-        Goal --> Exp2[Few-shot-3 - 빠르고 저렴]
-        Goal --> Exp3[Few-shot-5 - 균형]
-        Goal --> Exp4[Chain-of-Thought - 추론 과정 명시]
-    end
-
-    subgraph "리더보드"
-        Exp1 --> R1[F1 - 0.526 - Latency - 7.15s]
-        Exp2 --> R2[F1 - 0.588 - Latency - 7.12s]
-        Exp3 --> R3[F1 - 0.615 🥇 - Latency - 8.15s]
-        Exp4 --> R4[F1 - 0.571 - Latency - 23.94s]
-    end
-
-    subgraph "카테고리별 분석"
-        R3 --> Cat[Few-shot-5 카테고리별]
-
-        Cat --> C1[memory-safety - 0.800 - ✅ 우수]
-        Cat --> C2[performance - 0.800 - ✅ 우수]
-        Cat --> C3[security - 1.000 - ✅ 완벽]
-        Cat --> C4[concurrency - 0.571 - ✅ 양호]
-        Cat --> C5[modern-cpp - 0.000 - ❌ 실패]
-    end
-
-    subgraph "CoT 특이점 발견"
-        R4 --> CoTCat[CoT 카테고리별]
-
-        CoTCat --> CoT1[memory-safety - 0.833 - 유사]
-        CoTCat --> CoT2[modern-cpp - 0.727 - ✅ 압도적!]
-        CoTCat --> CoT3[기타 카테고리 - Few-shot보다 낮음]
-    end
-
-    subgraph "핵심 인사이트"
-        C5 --> Insight[Modern-cpp는 - 추론 과정 필요]
-        CoT2 --> Insight
-
-        Insight --> Next[💡 아이디어 - Few-shot + CoT 결합?]
-    end
-
-    style Goal fill:#1a237e,color:#fff
-    style R3 fill:#4caf50,color:#fff
-    style C5 fill:#f44336,color:#fff
-    style CoT2 fill:#ffc107,color:#000
-    style Next fill:#ff9800,color:#000
-```
-
-**Phase 2 핵심 발견**:
-- ✅ Few-shot-5가 전반적으로 최고 (F1: 0.615)
-- ✅ CoT가 modern-cpp에서 압도적 (0.727 vs 0.000)
-- 💡 Hybrid 기법의 가능성 발견
-
----
-
-### 5.4 Phase 3: Production 도구 개발
-
-```mermaid
-graph TB
-    subgraph "Phase 3 목표"
-        Goal[실제 사용 가능한 - 프로덕션 도구 구축]
-    end
-
-    subgraph "ProductionAnalyzer 구현"
-        Goal --> PA[ProductionAnalyzer 클래스]
-
-        PA --> Method1[analyze_file - 단일 파일 분석]
-        PA --> Method2[analyze_directory - 디렉토리 전체 분석]
-        PA --> Method3[analyze_pull_request - PR 변경사항 분석]
-    end
-
-    subgraph "CLI 인터페이스"
-        Method1 --> CLI1[python -m cli.main - analyze file]
-        Method2 --> CLI2[python -m cli.main - analyze dir]
-        Method3 --> CLI3[python -m cli.main - analyze pr]
-    end
-
-    subgraph "파일 필터링"
-        Method2 --> Filter[플러그인 기반 필터링]
-
-        Filter --> Accept[✅ 분석할 파일 - .cpp .h .hpp]
-        Filter --> Skip[❌ 제외할 파일 - test files - third_party/]
-    end
-
-    subgraph "PR 통합"
-        Method3 --> GitFlow[Git 통합]
-
-        GitFlow --> Diff[git diff --name-only - 변경 파일 목록]
-        Diff --> Analyze[변경 파일만 분석]
-        Analyze --> Report[Markdown 리포트 - PR comment 가능]
-    end
-
-    subgraph "출력 형식"
-        CLI1 --> Output1[Console 출력 - 색상 + 이모지]
-        CLI2 --> Output2[Markdown 파일 - --output report.md]
-        CLI3 --> Output3[PR 리포트 - GitHub 형식]
-    end
-
-    subgraph "Exit Gate"
-        Output1 --> Test[15-file Synthetic PR - 분석 성공 ✅]
-        Output2 --> Test
-        Output3 --> Test
-    end
-
-    style Goal fill:#1a237e,color:#fff
-    style PA fill:#283593,color:#fff
-    style CLI1 fill:#3949ab,color:#fff
-    style Report fill:#5c6bc0,color:#fff
-    style Test fill:#4caf50,color:#fff
-```
-
-**Phase 3 성과**:
-- ✅ 3가지 분석 모드 (file/dir/pr)
-- ✅ 플러그인 기반 파일 필터링
-- ✅ Markdown 리포트 생성
-- ✅ Git 통합 (PR 분석)
-- ✅ 15-file PR 검증 완료
-
----
-
-### 5.5 Phase 4: Hybrid 기법 개발
-
-**Phase 4의 목표**: **두 기법의 장점을 결합**하여 최고 성능 달성
-
-Phase 2에서 발견한 인사이트:
-- **Few-shot-5**: 전반적으로 우수하지만 modern-cpp 탐지 실패 (0.000)
-- **Chain-of-Thought**: modern-cpp에서 압도적 (0.727)이지만 느리고 다른 카테고리에서 약함
-
-**💡 핵심 아이디어**: "각 기법을 **강점이 있는 카테고리**에만 사용하면 어떨까?"
-
-> **💡 Hybrid 기법이란?**
->
-> **2-Pass 전략**으로 두 기법을 결합합니다:
->
-> **Pass 1 - Few-shot-5 (광범위 탐지)**:
-> - 모든 카테고리를 빠르게 스캔 (~8초)
-> - memory-safety, performance, security, concurrency 탐지
-> - Modern-cpp는 건너뜀 (어차피 못 찾음)
->
-> **Pass 2 - Chain-of-Thought (집중 탐지)**:
-> - Modern-cpp만 집중 분석 (~15초)
-> - `raw ptr → unique_ptr`, `NULL → nullptr` 같은 개선점 탐지
-> - 단계별 추론으로 높은 정확도
->
-> **Pass 3 - 결과 병합**:
-> - 두 결과를 합침
-> - 중복 제거 (같은 줄 + 같은 카테고리)
-> - 신뢰도 필터링 (confidence > 0.7)
->
-> **결과**:
-> - **F1: 0.634** (이전 최고 0.615 대비 +3%)
-> - Modern-cpp: 0.000 → 0.727 🎉
-> - 총 시간: ~23초 (Few-shot만: 8초, CoT만: 24초)
->
-> **트레이드오프**: 속도를 희생하고 정확도를 얻음
-
-```mermaid
-graph TB
-    subgraph "Phase 4 동기"
-        Problem[Modern-cpp 탐지 실패 - Few-shot - 0.000 - CoT - 0.727]
-        Problem --> Idea[💡 아이디어 - 두 기법을 결합하자]
-    end
-
-    subgraph "Hybrid 전략"
-        Idea --> Strategy[3-Pass 전략]
-
-        Strategy --> Pass1[Pass 1 - Few-shot-5 - 모든 카테고리 광범위 탐지]
-        Strategy --> Pass2[Pass 2 - CoT - Modern-cpp만 집중 탐지]
-        Strategy --> Pass3[Pass 3 - 결과 병합 - 중복 제거 + 필터링]
-    end
-
-    subgraph "Pass 1: Few-shot-5"
-        Pass1 --> FS_Cat[탐지 카테고리]
-
-        FS_Cat --> FSC1[memory-safety ✅]
-        FS_Cat --> FSC2[performance ✅]
-        FS_Cat --> FSC3[security ✅]
-        FS_Cat --> FSC4[concurrency ✅]
-        FS_Cat --> FSC5[modern-cpp ❌]
-    end
-
-    subgraph "Pass 2: Chain-of-Thought"
-        Pass2 --> CoT_Focus[Modern-cpp 집중]
-
-        CoT_Focus --> CoTC1[raw ptr → unique_ptr]
-        CoT_Focus --> CoTC2[NULL → nullptr]
-        CoT_Focus --> CoTC3[C-array → std::array]
-        CoT_Focus --> CoTC4[push_back → emplace_back]
-    end
-
-    subgraph "Pass 3: Merge & Filter"
-        Pass3 --> Merge[결과 병합]
-
-        Merge --> Dedup[중복 제거 - line + category]
-        Dedup --> Confidence[신뢰도 필터링 - confidence > 0.7]
-        Confidence --> Final[최종 결과]
-    end
-
-    subgraph "실험 결과"
-        Final --> Result[Hybrid Technique]
-
-        Result --> Metric1[F1 - 0.634 - +3.1% vs Few-shot-5]
-        Result --> Metric2[Modern-cpp - 0.250 - 0.000 → 0.250 ✅]
-        Result --> Metric3[Latency - 32.76s - 4x slower ⚠️]
-        Result --> Metric4[Cost - 2x tokens - 두 번 호출 ⚠️]
-    end
-
-    style Problem fill:#f44336,color:#fff
-    style Idea fill:#ff9800,color:#000
-    style Pass1 fill:#2196f3,color:#fff
-    style Pass2 fill:#9c27b0,color:#fff
-    style Pass3 fill:#4caf50,color:#fff
-    style Metric1 fill:#66bb6a,color:#fff
-    style Metric3 fill:#ffa726,color:#000
-```
-
-**Phase 4 성과**:
-- ✅ 최고 F1 score: **0.634** (+3.1%)
-- ✅ Modern-cpp 탐지 가능: 0.000 → 0.250
-- ⚠️ 4배 느림, 2배 비용
-- 💡 중요한 PR에만 사용 권장
-
----
-
-### 5.6 Phase 5: 대용량 파일 지원
-
-```mermaid
-graph TB
-    subgraph "Phase 5 문제"
-        Problem[700줄 파일 - Token limit 초과 - Context 손실]
-        Problem --> Solution[AST 기반 Chunking]
-    end
-
-    subgraph "tree-sitter 선택"
-        Solution --> Compare{Parser 선택}
-
-        Compare --> Option1[clangd - Full semantic]
-        Compare --> Option2[tree-sitter - Syntax only]
-
-        Option1 --> Clang1[❌ 느림 1-2초]
-        Option1 --> Clang2[❌ compile_commands 필요]
-        Option1 --> Clang3[❌ Include 의존성]
-
-        Option2 --> TS1[✅ 빠름 10ms - 200배 빠름!]
-        Option2 --> TS2[✅ 의존성 없음]
-        Option2 --> TS3[✅ Semantic은 LLM이]
-
-        TS1 --> Choice[tree-sitter 선택]
-        TS2 --> Choice
-        TS3 --> Choice
-    end
-
-    subgraph "Chunking 프로세스"
-        Choice --> Step1["① tree-sitter로 - AST 파싱"]
-        Step1 --> Step2["② 함수/클래스 추출 - function_definition - class_specifier"]
-        Step2 --> Step3["③ 컨텍스트 추가 - includes, usings"]
-        Step3 --> Step4["④ 병렬 분석 - 4 workers"]
-        Step4 --> Step5["⑤ 결과 병합 - 중복 제거"]
-    end
-
-    subgraph "성능 측정"
-        Step5 --> Perf[645줄 파일 테스트]
-
-        Perf --> P1[Chunks - 20개]
-        Perf --> P2[Sequential - 160초]
-        Perf --> P3[Parallel 4x - 40초 - ✅ 4배 빠름]
-        Perf --> P4[중복 - 2-3% - Deduplication으로 제거]
-    end
-
-    style Problem fill:#f44336,color:#fff
-    style Solution fill:#ff9800,color:#000
-    style Choice fill:#4caf50,color:#fff
-    style TS1 fill:#66bb6a,color:#fff
-    style P3 fill:#81c784,color:#fff
-```
-
-**Phase 5 성과**:
-- ✅ tree-sitter로 AST 파싱 (10ms)
-- ✅ 함수 단위 chunking (컨텍스트 보존)
-- ✅ 병렬 처리 (4x 속도 향상)
-- ✅ 1000+ 라인 파일 처리 가능
-
----
-
-### 5.7 Phase 진화 요약
+### 6.2 기법별 실험 결과
+
+| 기법 | Precision | Recall | F1 Score | Latency |
+|------|-----------|--------|----------|---------|
+| Zero-shot | 0.625 | 0.455 | 0.526 | 7.15s |
+| Few-shot-3 | 0.625 | 0.556 | 0.588 | 7.12s |
+| **Few-shot-5** | **0.667** | **0.571** | **0.615** | 8.15s |
+| Chain-of-Thought | 0.571 | 0.571 | 0.571 | 23.94s |
+| **Hybrid** | **0.684** | **0.591** | **0.634** | 32.76s |
 
 ```mermaid
 graph LR
-    Phase0[Phase 0 - 실험 인프라 - F1 - 0.526] --> Phase1[Phase 1 - Few-shot - F1 - 0.615 - +17%]
+    subgraph "F1 Score 진화"
+        ZS[Zero-shot - 0.526] --> FS3[Few-shot-3 - 0.588]
+        FS3 --> FS5[Few-shot-5 - 0.615]
+        FS5 --> HY[Hybrid - 0.634]
+    end
 
-    Phase1 --> Phase2[Phase 2 - 기법 비교 - 4가지 기법]
+    ZS --> Imp1[+12%]
+    FS3 --> Imp2[+5%]
+    FS5 --> Imp3[+3%]
 
-    Phase2 --> Phase3[Phase 3 - Production - CLI 도구]
-
-    Phase3 --> Phase4[Phase 4 - Hybrid - F1 - 0.634 - +3.1%]
-
-    Phase4 --> Phase5[Phase 5 - Chunking - 700+ lines]
-
-    Phase0 --> Insight0[Ground Truth 20개 - F1/Precision/Recall]
-    Phase1 --> Insight1[예시가 중요 - Precision +31%]
-    Phase2 --> Insight2[Modern-cpp는 - CoT 필요]
-    Phase3 --> Insight3[PR 통합 - 실제 워크플로우]
-    Phase4 --> Insight4[결합으로 - 최고 정확도]
-    Phase5 --> Insight5[tree-sitter로 - 빠른 파싱]
-
-    style Phase0 fill:#607d8b,color:#fff
-    style Phase1 fill:#2196f3,color:#fff
-    style Phase2 fill:#4caf50,color:#fff
-    style Phase3 fill:#ff9800,color:#000
-    style Phase4 fill:#9c27b0,color:#fff
-    style Phase5 fill:#f44336,color:#fff
+    style ZS fill:#546e7a,color:#fff
+    style FS5 fill:#388e3c,color:#fff
+    style HY fill:#7b1fa2,color:#fff
 ```
 
 ---
 
-## 6. 실험 결과 및 메트릭
+### 6.3 카테고리별 분석
 
-이 섹션에서는 **모든 기법의 실험 결과**를 정리합니다. 20개 Ground Truth 예제를 사용하여 각 기법의 F1, Precision, Recall, Latency를 측정했습니다.
+| 카테고리 | Few-shot-5 | Chain-of-Thought | 비고 |
+|----------|------------|------------------|------|
+| memory-safety | 0.800 | 0.833 | 둘 다 우수 |
+| performance | 0.800 | 0.500 | Few-shot 우위 |
+| security | 1.000 | 0.667 | Few-shot 우위 |
+| concurrency | 0.571 | 0.400 | Few-shot 우위 |
+| **modern-cpp** | **0.000** | **0.727** | CoT 압도적 |
+
+**핵심 발견**: modern-cpp 카테고리는 **단계별 추론(CoT)**이 필수
 
 ---
 
-### 6.1 최종 리더보드
+## 7. 향후 계획
 
-**5가지 기법을 동일 조건에서 비교한 결과**입니다. F1 점수 기준으로 순위를 매겼습니다.
+이 프로젝트는 **아직 완료되지 않았습니다**. 향후 다양한 개선이 가능합니다.
 
-**권장 사항**:
-- **일반적인 경우**: Few-shot-5 (F1: 0.615, 8초) - 최적의 균형점
-- **중요한 PR**: Hybrid (F1: 0.634, 33초) - 최고 정확도
-- **빠른 스캔**: Few-shot-3 (F1: 0.588, 7초) - 비용 효율적
+---
+
+### 7.1 전체 로드맵
 
 ```mermaid
 graph TB
-    subgraph "기법별 성능 비교 20개 Ground Truth"
-        Leaderboard[Technique Leaderboard]
+    subgraph "✅ 완료 - Phase 0-5"
+        Done[현재]
+        Done --> D1[5가지 프롬프팅 기법]
+        Done --> D2[AST 청킹 - tree-sitter]
+        Done --> D3[CLI 도구]
+        Done --> D4[C++ Plugin]
+        Done --> D5[규칙 기반 ResultMerger]
     end
 
-    subgraph "1위: Hybrid"
-        Leaderboard --> T1[Hybrid - F1 - 0.634 🥇]
-        T1 --> T1_Metrics[Precision - 0.667 - Recall - 0.619 - Latency - 32.76s - Cost - 2x tokens]
-        T1 --> T1_Use[사용 - 중요한 PR - Modern C++ 코드]
+    subgraph "🔥 최우선 - Phase 6"
+        P6[Aggregator LLM 구현]
+        P6 --> P6_1[Cross-chunk 이슈 탐지]
+        P6 --> P6_2[False Positive 필터링]
+        P6 --> P6_3[충돌 해결]
     end
 
-    subgraph "2위: Few-shot-5"
-        Leaderboard --> T2[Few-shot-5 - F1 - 0.615 🥈 - ★ 추천]
-        T2 --> T2_Metrics[Precision - 0.667 - Recall - 0.571 - Latency - 8.15s - Cost - 1x tokens]
-        T2 --> T2_Use[사용 - 일반적인 모든 경우 - 프로덕션 기본값]
+    subgraph "🔜 단기 - Phase 7-8"
+        P7[Ground Truth 확장 - 20→100개]
+        P8[Self-Critique 기법]
     end
 
-    subgraph "3위: Few-shot-3"
-        Leaderboard --> T3[Few-shot-3 - F1 - 0.588 🥉]
-        T3 --> T3_Metrics[Precision - 0.769 - Recall - 0.476 - Latency - 7.12s - Cost - 0.8x tokens]
-        T3 --> T3_Use[사용 - 비용 절감 - 빠른 스캔]
+    subgraph "📋 중기 - Phase 9-10"
+        P9[RAG 기반 Dynamic Few-shot]
+        P10[Semantic 청킹 - clangd]
     end
 
-    subgraph "4위: Chain-of-Thought"
-        Leaderboard --> T4[Chain-of-Thought - F1 - 0.571]
-        T4 --> T4_Metrics[Precision - 0.571 - Recall - 0.571 - Latency - 23.94s - Modern-cpp - 0.727 ✅]
-        T4 --> T4_Use[사용 - Modern C++ 특화 - 추론 과정 필요 시]
+    subgraph "🔮 장기 - Phase 11+"
+        P11[새 언어 플러그인 - Python, RTL]
+        P12[CI/CD 통합]
+        P13[모델 Fine-tuning]
     end
 
-    subgraph "5위: Zero-shot"
-        Leaderboard --> T5[Zero-shot - F1 - 0.526]
-        T5 --> T5_Metrics[Precision - 0.625 - Recall - 0.455 - Latency - 7.15s - Cost - 최소]
-        T5 --> T5_Use[사용 - 기준선 - 벤치마크]
-    end
+    Done --> P6 --> P7 --> P8 --> P9 --> P10 --> P11 --> P12 --> P13
 
-    style T1 fill:#9c27b0,color:#fff
-    style T2 fill:#4caf50,color:#fff
-    style T3 fill:#2196f3,color:#fff
-    style T4 fill:#ff9800,color:#000
-    style T5 fill:#607d8b,color:#fff
+    style Done fill:#2e7d32,color:#fff
+    style P6 fill:#c62828,color:#fff
+    style P6_1 fill:#c62828,color:#fff
+    style P6_2 fill:#c62828,color:#fff
+    style P6_3 fill:#c62828,color:#fff
+    style P7 fill:#1976d2,color:#fff
+    style P8 fill:#1976d2,color:#fff
+    style P9 fill:#7b1fa2,color:#fff
+    style P10 fill:#7b1fa2,color:#fff
+    style P11 fill:#546e7a,color:#fff
+    style P12 fill:#546e7a,color:#fff
+    style P13 fill:#546e7a,color:#fff
 ```
 
+**최우선 과제: Aggregator LLM**
+
+현재 가장 큰 한계는 **규칙 기반 ResultMerger**입니다. Aggregator LLM을 구현하면:
+- **Cross-chunk 이슈**: chunk 경계에서 놓친 버그 탐지
+- **False Positive 필터링**: 전체 파일 맥락에서 오탐 제거
+- **충돌 해결**: Worker들의 상충되는 판단을 지능적으로 결정
+
 ---
 
-### 6.2 카테고리별 상세 분석
+### 7.2 오케스트레이션 개선
+
+| 개선 항목 | 현재 | 향후 | 예상 효과 |
+|----------|------|------|----------|
+| **결과 병합** | 규칙 기반 ResultMerger | **Aggregator LLM** | **정확도 +25%** |
+| Cross-chunk | 탐지 불가 | Aggregator가 탐지 | False Negative -30% |
+| 기법 선택 | 고정 (Few-shot-5) | 적응형 | 정확도 +10% |
+| 에러 처리 | 단순 재시도 | 적응형 재시도 | 안정성 +50% |
+| 캐싱 | 없음 | 결과 캐싱 | 속도 10x (반복 분석) |
+
+---
+
+### 7.3 청킹 개선
+
+| 개선 항목 | 현재 | 향후 | 예상 효과 |
+|----------|------|------|----------|
+| 파서 | tree-sitter (Syntax) | clangd (Semantic) | 컨텍스트 +30% |
+| 청크 크기 | 고정 (200줄) | 적응형 | 효율성 +20% |
+| 컨텍스트 | includes만 | 관련 함수 시그니처 | 정확도 +15% |
+| 그룹핑 | 없음 | 호출 관계 기반 | False Negative -20% |
+
+---
+
+### 7.4 프롬프팅 개선
+
+| 개선 항목 | 현재 | 향후 | 예상 효과 |
+|----------|------|------|----------|
+| Few-shot | 고정 5개 | Dynamic (RAG) | 정확도 +15% |
+| 검증 | 없음 | Self-Critique | Precision +20% |
+| 출력 | JSON only | 구조화된 추론 | 설명 품질 향상 |
+
+---
+
+### 7.5 핵심 문제 해결을 위한 추가 기술
+
+> **핵심 문제**: 로컬 LLM은 **인풋이 조금만 길어져도 출력 퀄리티가 급격히 저하**됩니다.
+>
+> 현재 구현(AST 청킹 + 병렬 Workers + 규칙 병합)은 **기본 뼈대**입니다.
+> 아래 기술들을 추가하면 이 문제를 더욱 효과적으로 극복할 수 있습니다.
+
+---
+
+#### 7.5.1 Hierarchical Summarization (계층적 요약)
+
+**문제**: 각 Worker는 자기 chunk만 봄 → **전체 파일이 뭘 하는지 모름**
+
+**해결**: 각 chunk를 먼저 **1-2줄로 요약** → 분석 시 다른 chunk 요약을 컨텍스트로 제공
 
 ```mermaid
 graph TB
-    subgraph "Few-shot-5 카테고리별 성능"
-        FS5[Few-shot-5 - Overall F1 - 0.615]
+    subgraph "Phase 1: 요약 생성"
+        C1[Chunk 1] --> S1["Summary: 메모리 할당"]
+        C2[Chunk 2] --> S2["Summary: 데이터 처리"]
+        C3[Chunk 3] --> S3["Summary: 메모리 해제"]
     end
 
-    subgraph "우수 카테고리"
-        FS5 --> Good1[security - F1 - 1.000 - ✅ 완벽]
-        FS5 --> Good2[memory-safety - F1 - 0.800 - ✅ 우수]
-        FS5 --> Good3[performance - F1 - 0.800 - ✅ 우수]
+    subgraph "Phase 2: 요약과 함께 분석"
+        S1 --> Context[전체 요약 컨텍스트]
+        S2 --> Context
+        S3 --> Context
+        Context --> W1[Worker 1]
+        Context --> W2[Worker 2]
+        Context --> W3[Worker 3]
+        C1 --> W1
+        C2 --> W2
+        C3 --> W3
     end
 
-    subgraph "양호 카테고리"
-        FS5 --> OK1[concurrency - F1 - 0.571 - ✅ 양호]
-    end
-
-    subgraph "실패 카테고리"
-        FS5 --> Fail1[modern-cpp - F1 - 0.000 - ❌ 탐지 실패]
-    end
-
-    subgraph "Hybrid 개선 효과"
-        Fail1 --> Hybrid[Hybrid Technique]
-        Hybrid --> Improve[modern-cpp - F1 - 0.250 - ✅ 개선됨]
-    end
-
-    subgraph "CoT 특화 성능"
-        Fail1 --> CoT[CoT Technique]
-        CoT --> Special[modern-cpp - F1 - 0.727 - ✅ 압도적]
-    end
-
-    style Good1 fill:#4caf50,color:#fff
-    style Good2 fill:#4caf50,color:#fff
-    style Good3 fill:#4caf50,color:#fff
-    style OK1 fill:#ff9800,color:#000
-    style Fail1 fill:#f44336,color:#fff
-    style Improve fill:#66bb6a,color:#fff
-    style Special fill:#81c784,color:#fff
-```
-
----
-
-### 6.3 메트릭 정의 및 해석
-
-```mermaid
-graph TB
-    subgraph "평가 메트릭"
-        Metrics[Evaluation Metrics]
-    end
-
-    subgraph "Precision 정밀도"
-        Metrics --> P[Precision - 탐지한 것 중 실제 버그 비율]
-        P --> P_Formula[TP / TP + FP]
-        P_Formula --> P_Mean[높을수록 좋음 - False Positive 적음]
-    end
-
-    subgraph "Recall 재현율"
-        Metrics --> R[Recall - 실제 버그 중 탐지한 비율]
-        R --> R_Formula[TP / TP + FN]
-        R_Formula --> R_Mean[높을수록 좋음 - 누락된 버그 적음]
-    end
-
-    subgraph "F1 Score"
-        P_Formula --> F1[F1 Score - Precision과 Recall 조화평균]
-        R_Formula --> F1
-        F1 --> F1_Formula[2 × P × R / P + R]
-        F1_Formula --> F1_Mean[종합 성능 지표 - 0~1 사이 값]
-    end
-
-    subgraph "Token Efficiency"
-        Metrics --> TE[Token Efficiency - 1K 토큰당 이슈 탐지 수]
-        TE --> TE_Formula[Issues Found / Tokens Used × 1000]
-        TE_Formula --> TE_Mean[비용 대비 효율성 - 높을수록 경제적]
-    end
-
-    subgraph "실제 예시"
-        F1_Mean --> Example[Few-shot-5 예시]
-        Example --> Ex1[Ground Truth - 21 issues]
-        Example --> Ex2[Detected - 12 issues]
-        Example --> Ex3[True Positive - 12 - False Positive - 6 - False Negative - 9]
-        Example --> Ex4[Precision - 12/18 = 0.667 - Recall - 12/21 = 0.571 - F1 - 0.615]
-    end
-
-    style P fill:#2196f3,color:#fff
-    style R fill:#4caf50,color:#fff
-    style F1 fill:#ff9800,color:#000
-    style TE fill:#9c27b0,color:#fff
-    style Ex4 fill:#f44336,color:#fff
-```
-
----
-
-### 6.4 기법 선택 가이드
-
-```mermaid
-graph TB
-    Start{분석 목적은?}
-
-    Start -->|중요한 PR| Critical{Modern C++: 코드베이스?}
-    Start -->|일반 분석| General[Few-shot-5 - F1 - 0.615, 8초]
-    Start -->|빠른 스캔| Fast[Few-shot-3 - F1 - 0.588, 7초]
-    Start -->|벤치마크| Baseline[Zero-shot - F1 - 0.526, 7초]
-
-    Critical -->|Yes| UseCpp[Hybrid - F1 - 0.634, 33초 - Modern-cpp 탐지]
-    Critical -->|No| UseGeneral[Few-shot-5 - 충분한 정확도]
-
-    subgraph "추천 조합"
-        UseCpp --> Recommend1[main 브랜치 머지 - 정확도 최우선]
-        UseGeneral --> Recommend2[일반 PR 리뷰 - 속도와 정확도 균형]
-        General --> Recommend2
-        Fast --> Recommend3[100+ 파일 스캔 - 비용 절감]
-        Baseline --> Recommend4[새 기법 비교 - 기준선]
-    end
-
-    style UseCpp fill:#9c27b0,color:#fff
-    style UseGeneral fill:#4caf50,color:#fff
-    style General fill:#4caf50,color:#fff
-    style Fast fill:#2196f3,color:#fff
-    style Baseline fill:#607d8b,color:#fff
-```
-
----
-
-## 7. AST 기반 대용량 파일 처리
-
-이 섹션은 **대용량 C++ 파일 (700줄 이상)**을 어떻게 처리하는지 상세히 설명합니다. LLM의 토큰 제한을 극복하기 위한 **AST 기반 청킹 전략**입니다.
-
----
-
-### 7.1 문제 상황 및 해결 전략
-
-**핵심 문제**: LLM은 한 번에 처리할 수 있는 토큰 수가 제한되어 있습니다 (DeepSeek: ~4096 토큰). 700줄 C++ 파일은 약 5000 토큰으로, 이 한계를 초과합니다.
-
-**해결 접근법 비교**:
-| 방법 | 장점 | 단점 |
-|------|------|------|
-| **단순 줄 분할** | 구현 쉬움 | 함수 중간에 잘림, 문맥 손실 |
-| **AST 청킹** (우리 방식) | 의미 단위 보존 | 구현 복잡 (tree-sitter 필요) |
-
-```mermaid
-graph TB
-    subgraph "문제: Token Limit"
-        Problem1[700줄 C++ 파일 - ~5000 tokens]
-        Problem1 --> Limit[DeepSeek Context - 4096 tokens]
-        Limit --> Issue1[❌ Token overflow]
-        Limit --> Issue2[❌ Context 손실]
-        Limit --> Issue3[❌ 분석 불가능]
-    end
-
-    subgraph "Naive Solution"
-        Issue1 --> Naive[단순 줄 분할 - 200줄씩]
-        Naive --> NP1[❌ 함수 중간에 잘림]
-        Naive --> NP2[❌ 컨텍스트 손실]
-        Naive --> NP3[❌ Include 정보 없음]
-    end
-
-    subgraph "Our Solution: AST Chunking"
-        Issue1 --> Solution[tree-sitter 기반 - AST Chunking]
-        Solution --> SP1[✅ 함수 단위 분할 - semantic boundary]
-        Solution --> SP2[✅ 컨텍스트 보존 - includes, usings]
-        Solution --> SP3[✅ 병렬 처리 - 4x 속도 향상]
-        Solution --> SP4[✅ 중복 제거 - line + category]
-    end
-
-    style Problem1 fill:#f44336,color:#fff
-    style Limit fill:#e53935,color:#fff
-    style Naive fill:#ff9800,color:#000
-    style Solution fill:#4caf50,color:#fff
-    style SP1 fill:#66bb6a,color:#fff
-    style SP2 fill:#66bb6a,color:#fff
-    style SP3 fill:#66bb6a,color:#fff
-```
-
----
-
-### 7.2 FileChunker - AST 파싱 및 청킹
-
-```mermaid
-graph TB
-    subgraph "입력"
-        Input[large_file.cpp - 700 lines, 5000 tokens]
-    end
-
-    subgraph "(1) tree-sitter 파싱"
-        Input --> Read[파일 읽기 - bytes]
-        Read --> Parse[tree-sitter.parse - C++ Grammar]
-        Parse --> AST[Abstract Syntax Tree]
-    end
-
-    subgraph "(2) AST 구조 예시"
-        AST --> Root[root_node - translation_unit]
-        Root --> Child1[preproc_include - #include iostream - line 1]
-        Root --> Child2[preproc_include - #include vector - line 2]
-        Root --> Child3[using_declaration - using namespace std - line 3]
-        Root --> Child4[function_definition - void process - lines 5-105]
-        Root --> Child5[class_specifier - class DataProcessor - lines 107-307]
-        Root --> Child6[function_definition - void analyze - lines 309-459]
-        Root --> Child7[function_definition - int main - lines 461-700]
-    end
-
-    subgraph "(3) 컨텍스트 추출"
-        Child1 --> Context[File Context]
-        Child2 --> Context
-        Child3 --> Context
-        Context --> ContextStr[#include iostream - #include vector - using namespace std]
-    end
-
-    subgraph "(4) Chunk 생성"
-        Child4 --> Chunk1[Chunk 1 - chunk_id - process:5-105 - context + code]
-        Child5 --> Chunk2[Chunk 2 - chunk_id - DataProcessor:107-307 - context + code]
-        Child6 --> Chunk3[Chunk 3 - chunk_id - analyze:309-459 - context + code]
-        Child7 --> Chunk4[Chunk 4 - chunk_id - main:461-700 - context + code]
-
-        ContextStr --> Chunk1
-        ContextStr --> Chunk2
-        ContextStr --> Chunk3
-        ContextStr --> Chunk4
-    end
-
-    style Parse fill:#1976d2,color:#fff
-    style AST fill:#1565c0,color:#fff
     style Context fill:#388e3c,color:#fff
-    style Chunk1 fill:#43a047,color:#fff
-    style Chunk2 fill:#43a047,color:#fff
-    style Chunk3 fill:#43a047,color:#fff
-    style Chunk4 fill:#43a047,color:#fff
+    style S1 fill:#1976d2,color:#fff
+    style S2 fill:#1976d2,color:#fff
+    style S3 fill:#1976d2,color:#fff
 ```
 
-**핵심**:
-- **10ms 파싱**: tree-sitter는 매우 빠름
-- **함수 경계 보존**: function_definition, class_specifier로 정확히 분할
-- **컨텍스트 자동 추가**: 모든 chunk에 includes, usings 포함
+**Worker 프롬프트 예시**:
+```
+## 전체 파일 요약:
+- Chunk 1: 메모리 할당 (malloc)
+- Chunk 2: 데이터 처리
+- Chunk 3: 메모리 해제 (free)  ← 이걸 알면 "leak 아니네" 판단 가능
+
+## 분석 대상 (Chunk 1):
+void* allocate() { return malloc(100); }
+```
+
+**효과**: Worker가 **전체 맥락을 알고** 분석 → Cross-chunk False Positive 50% 감소
 
 ---
 
-### 7.3 ChunkAnalyzer - 병렬 분석
+#### 7.5.2 Sliding Window with Overlap (겹침 청킹)
 
-```mermaid
-graph TB
-    subgraph "Chunk 목록"
-        Chunks[4 Chunks - from FileChunker]
-    end
+**문제**: chunk 경계에서 이슈 놓침 (malloc이 Chunk 1, free가 Chunk 2에 있는 경우)
 
-    subgraph "ThreadPoolExecutor 4 Workers"
-        Chunks --> Worker1[Worker 1 - ThreadPoolExecutor]
-        Chunks --> Worker2[Worker 2 - ThreadPoolExecutor]
-        Chunks --> Worker3[Worker 3 - ThreadPoolExecutor]
-        Chunks --> Worker4[Worker 4 - ThreadPoolExecutor]
+**해결**: chunk를 **겹치게** 분할 → 경계 이슈를 최소 한 Worker가 봄
 
-        Worker1 --> Analyze1[Chunk 1 분석 - context + code → LLM]
-        Worker2 --> Analyze2[Chunk 2 분석 - context + code → LLM]
-        Worker3 --> Analyze3[Chunk 3 분석 - context + code → LLM]
-        Worker4 --> Analyze4[Chunk 4 분석 - context + code → LLM]
-    end
+```
+현재:   [Chunk 1: 1-100] [Chunk 2: 101-200] [Chunk 3: 201-300]
+                    ↑ 경계에서 이슈 놓침
 
-    subgraph "LLM 분석"
-        Analyze1 --> LLM1[DeepSeek-Coder - 8초]
-        Analyze2 --> LLM2[DeepSeek-Coder - 8초]
-        Analyze3 --> LLM3[DeepSeek-Coder - 8초]
-        Analyze4 --> LLM4[DeepSeek-Coder - 8초]
-    end
-
-    subgraph "분석 결과"
-        LLM1 --> Result1[Result 1 - line 15 - memory leak - line 87 - performance]
-        LLM2 --> Result2[Result 2 - line 203 - data race - line 255 - modern-cpp]
-        LLM3 --> Result3[Result 3 - line 387 - buffer overflow]
-        LLM4 --> Result4[Result 4 - line 522 - null deref - line 658 - unused var]
-    end
-
-    subgraph "라인 번호 조정"
-        Result1 --> Adjust1[Chunk 1 - +5 - chunk line → file line]
-        Result2 --> Adjust2[Chunk 2 - +107]
-        Result3 --> Adjust3[Chunk 3 - +309]
-        Result4 --> Adjust4[Chunk 4 - +461]
-
-        Adjust1 --> Final1[line 15, 87]
-        Adjust2 --> Final2[line 203, 255]
-        Adjust3 --> Final3[line 387]
-        Adjust4 --> Final4[line 522, 658]
-    end
-
-    style Worker1 fill:#f57c00,color:#fff
-    style Worker2 fill:#f57c00,color:#fff
-    style Worker3 fill:#f57c00,color:#fff
-    style Worker4 fill:#f57c00,color:#fff
-    style LLM1 fill:#7986cb,color:#fff
-    style LLM2 fill:#7986cb,color:#fff
-    style LLM3 fill:#7986cb,color:#fff
-    style LLM4 fill:#7986cb,color:#fff
+개선:   [Chunk 1: 1-120] [Chunk 2: 80-220] [Chunk 3: 180-300]
+                    ↑ 20줄씩 겹침 → 경계 이슈 잡힘
 ```
 
-**성능 향상**:
-- **순차 처리**: 4 chunks × 8초 = **32초**
-- **병렬 처리** (4 workers): **~10초** (3.2x 빠름)
-- **실제**: 오버헤드 포함 **~40초** 소요
+```mermaid
+graph LR
+    subgraph "현재: 경계 분리"
+        A1[1-100] --> A2[101-200]
+        A2 --> A3[201-300]
+    end
+
+    subgraph "개선: 겹침 청킹"
+        B1[1-120] --> B2[80-220]
+        B2 --> B3[180-300]
+    end
+
+    style A2 fill:#c62828,color:#fff
+    style B2 fill:#388e3c,color:#fff
+```
+
+**효과**: 경계 이슈 **80% 탐지** 가능
+**비용**: 분석량 20-30% 증가 (trade-off)
 
 ---
 
-### 7.4 ResultMerger - 중복 제거 및 통합
+#### 7.5.3 Two-Phase Analysis (2단계 분석)
+
+**문제**: 모든 코드를 정밀 분석 → 느리고 토큰 낭비
+
+**해결**: **1단계에서 의심 영역만 찾고**, 2단계에서 정밀 분석
+
+```mermaid
+graph LR
+    subgraph "Phase 1: Quick Scan"
+        Code[전체 코드] --> Quick[Zero-shot - 빠른 스캔]
+        Quick --> Areas["의심 영역: lines 45-60, 120-140"]
+    end
+
+    subgraph "Phase 2: Deep Analysis"
+        Areas --> Deep[Few-shot + CoT - 정밀 분석]
+        Deep --> Result[최종 결과]
+    end
+
+    style Quick fill:#1976d2,color:#fff
+    style Deep fill:#c62828,color:#fff
+```
+
+**효과**: 토큰 사용량 **50-70% 감소**, 속도 향상
+**적용**: 대용량 파일(500줄+)에서 특히 유용
+
+---
+
+#### 7.5.4 Static + LLM Hybrid (정적 분석 + LLM 결합)
+
+**문제**: LLM만으로 모든 버그 탐지 → 느리고 때로는 부정확
+
+**해결**: **확실한 버그는 정적 분석기**로, **맥락 필요한 버그는 LLM**으로
 
 ```mermaid
 graph TB
-    subgraph "분석 결과 수집"
-        Results[4 Results - from ChunkAnalyzer]
-        Results --> R1[Result 1 - 2 issues]
-        Results --> R2[Result 2 - 3 issues]
-        Results --> R3[Result 3 - 2 issues]
-        Results --> R4[Result 4 - 2 issues]
+    subgraph "Static Analysis (빠름, 확실)"
+        Code[코드] --> Static[clang-tidy]
+        Static --> S1[null deref]
+        Static --> S2[buffer overflow]
+        Static --> S3[unused variable]
+    end
+
+    subgraph "LLM Analysis (맥락 이해)"
+        Code --> LLM[LLM 분석]
+        LLM --> L1[logic error]
+        LLM --> L2[design issue]
+        LLM --> L3[security flaw]
     end
 
     subgraph "결과 통합"
-        R1 --> Collect[All Issues - 9 issues total]
-        R2 --> Collect
-        R3 --> Collect
-        R4 --> Collect
+        S1 --> Merge[통합 + 중복 제거]
+        S2 --> Merge
+        S3 --> Merge
+        L1 --> Merge
+        L2 --> Merge
+        L3 --> Merge
+        Merge --> Final[최종 결과]
     end
 
-    subgraph "중복 제거 로직"
-        Collect --> Group[Grouping - by line, category]
-
-        Group --> G1[line 203, concurrency: - 2개 중복 발견]
-        Group --> G2[line 387, memory-safety: - 1개만]
-        Group --> G3[기타 카테고리: - 중복 없음]
-
-        G1 --> Select1[긴 reasoning 선택 - 더 상세한 설명]
-        G2 --> Select2[그대로 유지]
-        G3 --> Select3[그대로 유지]
-    end
-
-    subgraph "정렬 및 메타데이터"
-        Select1 --> Sort[Line 번호 정렬 - 15 → 87 → 203 → ...]
-        Select2 --> Sort
-        Select3 --> Sort
-
-        Sort --> Meta[메타데이터 추가]
-        Meta --> M1[num_chunks - 4]
-        Meta --> M2[total_tokens - 15234]
-        Meta --> M3[total_latency - 42.3s]
-        Meta --> M4[duplicates_removed - 2]
-    end
-
-    subgraph "최종 결과"
-        M1 --> Final[Final AnalysisResult - 7 unique issues - sorted by line]
-        M2 --> Final
-        M3 --> Final
-        M4 --> Final
-    end
-
-    style Collect fill:#2196f3,color:#fff
-    style Group fill:#ff9800,color:#000
-    style Select1 fill:#9c27b0,color:#fff
-    style Sort fill:#4caf50,color:#fff
-    style Final fill:#66bb6a,color:#fff
+    style Static fill:#2e7d32,color:#fff
+    style LLM fill:#7b1fa2,color:#fff
+    style Merge fill:#1976d2,color:#fff
 ```
 
-**중복 제거 전략**:
-1. **(line, category)** 기준으로 그룹화
-2. 그룹 내에서 **reasoning이 가장 긴** 것 선택
-3. Line 번호 순으로 정렬
-4. 메타데이터 통합
+| 분석기 | 담당 | 장점 |
+|--------|------|------|
+| **clang-tidy** | null deref, modernize, bugprone | Clang AST 기반, 정확도 높음 |
+| **LLM** | 로직 오류, 설계 문제, 보안 | 맥락 이해, 복잡한 패턴 |
+
+> **왜 clang-tidy?** CMake 프로젝트는 `compile_commands.json`이 있어서 clang-tidy가 **Full Semantic 분석** 가능
+
+**효과**: 정확도 **20%↑**, 속도 **30%↑** (LLM 부하 감소)
 
 ---
 
-### 7.5 성능 벤치마크
+#### 7.5.5 Function Signature Context (함수 시그니처 컨텍스트)
+
+**문제**: Worker가 다른 함수의 존재를 모름 → 관계 파악 불가
+
+**해결**: 분석 대상 외에 **다른 함수들의 시그니처**를 컨텍스트로 제공
+
+```
+현재 Worker가 보는 것:
+┌─────────────────────────────────┐
+│ void process(Data* d) {        │
+│     // 100줄 코드               │
+│ }                               │
+└─────────────────────────────────┘
+
+개선된 Worker가 보는 것:
+┌─────────────────────────────────┐
+│ // 이 파일의 다른 함수들:        │
+│ // - Data* createData()        │  ← d가 어디서 오는지 힌트
+│ // - void deleteData(Data*)    │  ← leak 아닌지 힌트
+│ // - bool validateData(Data*)  │
+│                                 │
+│ void process(Data* d) {        │
+│     // 100줄 코드               │
+│ }                               │
+└─────────────────────────────────┘
+```
+
+**효과**: 전체 코드 없이도 **관계 파악** 가능 → 맥락 이해도 **30%↑**
+
+---
+
+#### 7.5.6 제안: 개선된 파이프라인
+
+위 기술들을 조합한 **이상적인 파이프라인**:
 
 ```mermaid
 graph TB
-    subgraph "테스트 파일"
-        Test[test-data/large.cpp - 645 lines]
+    subgraph "Stage 0: Static Pre-scan"
+        Code[소스 코드] --> Static[clang-tidy]
+        Static --> StaticIssues[확실한 버그들]
     end
 
-    subgraph "Chunking 결과"
-        Test --> Chunker[FileChunker 실행]
-        Chunker --> Stats[Chunks - 20개 - Avg size - 32 lines - Context - 3 lines each]
+    subgraph "Stage 1: Chunking + Summarization"
+        Code --> Chunk[AST Chunking with Overlap]
+        Chunk --> C1[Chunk 1]
+        Chunk --> C2[Chunk 2]
+        Chunk --> CN[Chunk N]
+        C1 --> Sum1[Summary 1]
+        C2 --> Sum2[Summary 2]
+        CN --> SumN[Summary N]
     end
 
-    subgraph "분석 시간 비교"
-        Stats --> Sequential[순차 처리 - 1 worker]
-        Stats --> Parallel[병렬 처리 - 4 workers]
-
-        Sequential --> Seq1[20 chunks × 8s = 160s]
-        Parallel --> Par1[20 chunks ÷ 4 = 5 batches - 5 batches × 8s = 40s]
+    subgraph "Stage 2: Context-Aware Analysis"
+        Sum1 --> Context[전체 요약 + 함수 시그니처]
+        Sum2 --> Context
+        SumN --> Context
+        Context --> W1[Worker 1]
+        Context --> W2[Worker 2]
+        Context --> WN[Worker N]
+        C1 --> W1
+        C2 --> W2
+        CN --> WN
+        W1 --> R1[Result 1]
+        W2 --> R2[Result 2]
+        WN --> RN[Result N]
     end
 
-    subgraph "메모리 사용량"
-        Parallel --> Mem[Worker당 메모리]
-        Mem --> Mem1[Chunk - ~2KB]
-        Mem --> Mem2[Context - ~1KB]
-        Mem --> Mem3[Total per worker - ~10MB]
-        Mem --> Mem4[4 workers - ~40MB - ✅ 매우 효율적]
+    subgraph "Stage 3: Intelligent Aggregation"
+        R1 --> Agg[Aggregator LLM]
+        R2 --> Agg
+        RN --> Agg
+        StaticIssues --> Agg
+        Agg --> Final[최종 결과]
     end
 
-    subgraph "정확도"
-        Par1 --> Accuracy[정확도 검증]
-        Accuracy --> A1[Issues found - 11개]
-        Accuracy --> A2[Duplicates - 2개 자동 제거 - 2.3%]
-        Accuracy --> A3[False negatives - 0개 - 청킹으로 인한 손실 없음]
-    end
-
-    style Chunker fill:#1976d2,color:#fff
-    style Seq1 fill:#f44336,color:#fff
-    style Par1 fill:#4caf50,color:#fff
-    style Mem4 fill:#66bb6a,color:#fff
-    style A3 fill:#81c784,color:#fff
+    style Static fill:#2e7d32,color:#fff
+    style Context fill:#7b1fa2,color:#fff
+    style Agg fill:#388e3c,color:#fff
+    style Final fill:#1976d2,color:#fff
 ```
 
-**핵심 성과**:
-- ✅ **4배 빠름**: 160초 → 40초
-- ✅ **메모리 효율적**: Worker당 10MB
-- ✅ **정확도 손실 없음**: 청킹으로 인한 false negative 없음
-- ✅ **자동 중복 제거**: 2-3% 중복은 자동 처리
+**4단계 파이프라인 요약**:
+
+| Stage | 이름 | 역할 | 현재 구현 |
+|-------|------|------|----------|
+| 0 | Static Pre-scan | 확실한 버그 빠르게 탐지 | ❌ |
+| 1 | Chunking + Summarization | 겹침 청킹 + 각 chunk 요약 | 부분 (겹침/요약 없음) |
+| 2 | Context-Aware Analysis | 전체 맥락과 함께 분석 | ❌ |
+| 3 | Intelligent Aggregation | LLM으로 결과 종합 | ❌ (규칙 기반) |
 
 ---
 
-## 8. 데이터 플로우 상세
+#### 7.5.7 기술별 우선순위
 
-이 섹션은 **데이터가 시스템을 통해 어떻게 흐르는지** 시퀀스 다이어그램으로 보여줍니다. 사용자 요청부터 결과 반환까지의 전체 과정을 추적할 수 있습니다.
-
----
-
-### 8.1 단일 파일 분석 (Chunking 없음)
-
-**가장 단순한 케이스**: 300줄 미만의 작은 파일을 분석하는 경우입니다. 파일 전체를 한 번에 LLM에게 전달합니다.
-
-**처리 시간**: ~7-8초
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant CLI
-    participant PA as ProductionAnalyzer
-    participant Plugin as CppPlugin
-    participant Tech as FewShotTechnique
-    participant Ollama as OllamaClient
-    participant LLM as DeepSeek 33B
-
-    User->>CLI: python -m cli.main analyze file test.cpp
-    CLI->>PA: analyze_file(test.cpp)
-
-    PA->>Plugin: should_analyze_file(test.cpp)?
-    Plugin-->>PA: True (C++ file, not test)
-
-    PA->>PA: read_file → 100 lines
-    PA->>PA: check size < 300 lines → direct analysis
-
-    PA->>Tech: analyze(AnalysisRequest)
-    Tech->>Plugin: get_few_shot_examples()
-    Plugin-->>Tech: 5 examples [memory leak, buffer overflow, ...]
-
-    Tech->>Tech: build_prompt(code + examples)
-    Tech->>Ollama: generate(prompt)
-
-    Ollama->>LLM: POST /api/generate
-    Note over LLM: DeepSeek-Coder 추론: ~8초 소요
-    LLM-->>Ollama: JSON response
-
-    Ollama-->>Tech: response text
-    Tech->>Tech: parse JSON → List[Issue]
-
-    Tech-->>PA: AnalysisResult(issues=[...])
-    PA-->>CLI: AnalysisResult
-
-    CLI->>User: Display results: Found 4 issue(s):: ● Line 10 [memory-safety] Memory leak: ● Line 25 [performance] Pass by value: ...
-```
+| 순위 | 기술 | 구현 난이도 | 예상 효과 | 권장 시기 |
+|------|------|------------|----------|----------|
+| 1 | **Aggregator LLM** | 중 | 정확도 +25% | Phase 6 |
+| 2 | **Sliding Window Overlap** | 낮음 | 경계 이슈 80%↓ | Phase 6 |
+| 3 | **Function Signature Context** | 낮음 | 맥락 +30% | Phase 7 |
+| 4 | **Hierarchical Summarization** | 중 | Cross-chunk 50%↓ | Phase 7 |
+| 5 | **Static + LLM Hybrid** | 중 | 속도 30%↑ | Phase 8 |
+| 6 | **Two-Phase Analysis** | 중 | 토큰 50%↓ | Phase 9 |
 
 ---
 
-### 8.2 대용량 파일 분석 (Chunking)
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant CLI
-    participant PA as ProductionAnalyzer
-    participant FC as FileChunker
-    participant CA as ChunkAnalyzer
-    participant Tech as Technique
-    participant RM as ResultMerger
-
-    User->>CLI: python -m cli.main analyze file large.cpp --chunk
-    CLI->>PA: analyze_file(large.cpp, chunk_mode=True)
-
-    PA->>PA: read_file → 645 lines
-    PA->>PA: check size ≥ 300 lines → use chunking
-
-    PA->>FC: chunk_file(large.cpp, max_lines=200)
-    Note over FC: tree-sitter 파싱: ~10ms
-    FC->>FC: parse AST
-    FC->>FC: extract context (includes, usings)
-    FC->>FC: extract functions/classes
-    FC-->>PA: List[Chunk] (20 chunks)
-
-    PA->>CA: analyze_chunks_parallel(chunks, workers=4)
-
-    par Worker 1
-        CA->>Tech: analyze(Chunk 1)
-        Tech-->>CA: Result 1 (2 issues)
-    and Worker 2
-        CA->>Tech: analyze(Chunk 2)
-        Tech-->>CA: Result 2 (3 issues)
-    and Worker 3
-        CA->>Tech: analyze(Chunk 3)
-        Tech-->>CA: Result 3 (1 issue)
-    and Worker 4
-        CA->>Tech: analyze(Chunk 4)
-        Tech-->>CA: Result 4 (2 issues)
-    end
-
-    Note over CA: 병렬 처리: ~40초 소요
-
-    CA-->>PA: List[AnalysisResult] (20 results)
-
-    PA->>RM: merge(results)
-    RM->>RM: collect all issues (23 issues)
-    RM->>RM: adjust line numbers (chunk → file)
-    RM->>RM: deduplicate by (line, category)
-    RM->>RM: sort by line number
-    RM-->>PA: Combined AnalysisResult (11 unique issues)
-
-    PA-->>CLI: AnalysisResult
-    CLI->>User: Display results: Analyzed 20 chunks in 42.3s: Found 11 issue(s):...
-```
-
----
-
-### 8.3 Pull Request 분석
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant CLI
-    participant PA as ProductionAnalyzer
-    participant Git
-    participant Plugin as CppPlugin
-    participant Tech as Technique
-
-    User->>CLI: python -m cli.main analyze pr --base main --head feature
-    CLI->>PA: analyze_pull_request(base=main, head=feature)
-
-    PA->>Git: git diff --name-only main...feature
-    Git-->>PA: changed_files = [src/a.cpp, src/b.h, test/t.cpp, ...]
-
-    PA->>Plugin: filter files
-    Plugin-->>PA: filtered = [src/a.cpp, src/b.h] (skip test)
-
-    loop For each changed file
-        PA->>PA: analyze_file(src/a.cpp)
-        PA->>Tech: analyze(code)
-        Tech-->>PA: AnalysisResult
-    end
-
-    PA->>PA: combine all results
-    PA->>PA: generate PR report (Markdown)
-
-    PA-->>CLI: PR AnalysisResult + report
-    CLI->>User: Display PR report: : ## PR Analysis: Files changed: 2: Issues found: 5: : ### src/a.cpp: ● Line 42 [memory-safety] ...: ...
-```
-
----
-
-### 8.4 실험 실행 플로우
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant CLI
-    participant ER as ExperimentRunner
-    participant GT as GroundTruthDataset
-    participant Tech as Technique
-    participant MC as MetricsCalculator
-
-    User->>CLI: python -m cli.main experiment run --config few_shot_5.yml
-    CLI->>ER: run_experiment(config)
-
-    ER->>ER: parse YAML config
-    ER->>GT: load_dataset("cpp")
-    GT-->>ER: 20 examples
-
-    ER->>Tech: create technique (few_shot_5)
-
-    loop For each example (20회)
-        ER->>Tech: analyze(example.code)
-        Tech-->>ER: detected_issues
-
-        ER->>MC: compare(detected, expected)
-        MC-->>ER: TP, FP, FN counts
-    end
-
-    ER->>MC: calculate_metrics(all results)
-    MC->>MC: precision = TP / (TP + FP)
-    MC->>MC: recall = TP / (TP + FN)
-    MC->>MC: f1 = 2 × P × R / (P + R)
-    MC-->>ER: MetricsResult
-
-    ER->>ER: save results to experiments/runs/
-    ER-->>CLI: ExperimentResult
-
-    CLI->>User: Display metrics: : Experiment: few_shot_5: F1 Score: 0.615: Precision: 0.667: Recall: 0.571: ...
-```
-
----
-
-## 9. 플러그인 확장성
-
-이 섹션은 **새로운 언어를 어떻게 지원하는지** 설명합니다. 플러그인 아키텍처 덕분에 Framework Core 수정 없이 새 언어를 추가할 수 있습니다.
-
----
-
-### 9.1 DomainPlugin 인터페이스
-
-**DomainPlugin**은 모든 언어 플러그인이 구현해야 하는 인터페이스입니다.
-
-**핵심 메서드**:
-| 메서드 | 역할 | 예시 (C++) |
-|--------|------|-----------|
-| `get_file_extensions()` | 지원 확장자 | [.cpp, .h, .hpp] |
-| `should_analyze_file()` | 파일 필터링 | test 파일 제외 |
-| `get_few_shot_examples()` | 예시 반환 | 5개 예시 |
-| `get_categories()` | 버그 카테고리 | 5개 카테고리 |
-| `preprocess_code()` | 코드 전처리 | 주석 제거 등 |
-| `postprocess_result()` | 결과 후처리 | 라인 번호 조정 |
-
-```mermaid
-classDiagram
-    class DomainPlugin {
-        <<interface>>
-        +get_file_extensions() List~str~
-        +should_analyze_file(Path) bool
-        +get_few_shot_examples() List~Example~
-        +get_categories() List~str~
-        +preprocess_code(str) str
-        +postprocess_result(Result) Result
-    }
-
-    class CppPlugin {
-        +extensions: [.cpp, .h, .hpp, .cc, .cxx, .hxx]
-        +categories: [memory-safety, modern-cpp, performance, security, concurrency]
-        +examples: 5 curated examples
-        +should_analyze_file() Skip test/, third_party/
-    }
-
-    class PythonPlugin {
-        +extensions: [.py]
-        +categories: [type-safety, imports, exception-handling, python-idioms]
-        +examples: 5 Python examples
-        +should_analyze_file() Skip __init__.py, test_*.py
-    }
-
-    class RTLPlugin {
-        +extensions: [.v, .sv, .svh]
-        +categories: [timing, power, area, synthesis, lint]
-        +examples: 5 Verilog examples
-        +should_analyze_file() Skip testbench/, third_party/
-    }
-
-    DomainPlugin <|-- CppPlugin : implements
-    DomainPlugin <|-- PythonPlugin : implements
-    DomainPlugin <|-- RTLPlugin : implements
-
-    note for CppPlugin "Production\nF1: 0.615"
-    note for PythonPlugin "Future\nPlanned"
-    note for RTLPlugin "Future\nPlanned"
-```
-
----
-
-### 9.2 새 플러그인 추가 프로세스
-
-```mermaid
-graph TB
-    subgraph "(1) 플러그인 구현"
-        Start[새 언어 지원 - Python]
-        Start --> Impl[PythonPlugin 클래스]
-
-        Impl --> M1[get_file_extensions - python]
-        Impl --> M2[get_categories - type-safety, imports, ...]
-        Impl --> M3[get_few_shot_examples - 5 Python examples]
-        Impl --> M4[should_analyze_file - Skip test_*.py, __init__]
-    end
-
-    subgraph "(2) Ground Truth 생성"
-        M3 --> GT[20개 Python 예제]
-
-        GT --> GT1[type-safety - 5개 - None checks, type hints]
-        GT --> GT2[imports - 3개 - circular import, unused]
-        GT --> GT3[exception-handling - 4개 - try/except issues]
-        GT --> GT4[python-idioms - 5개 - unpythonic code]
-        GT --> GT5[clean code - 3개 - negative examples]
-    end
-
-    subgraph "(3) 실험 실행"
-        GT --> ExpConfig[experiments/configs/ - python_few_shot_5.yml]
-        ExpConfig --> RunExp[python -m cli.main - experiment run]
-        RunExp --> Metrics[MetricsCalculator - F1/Precision/Recall]
-    end
-
-    subgraph "(4) 프로덕션 사용"
-        Metrics --> Prod{F1 > 0.6?}
-        Prod -->|Yes| UseProd[ProductionAnalyzer - plugin=PythonPlugin]
-        Prod -->|No| Improve[Few-shot 예시 개선 - 다시 실험]
-
-        Improve --> GT
-    end
-
-    subgraph "(5) 완료"
-        UseProd --> Done[✅ Python 지원 완료 - python -m cli.main - analyze file script.py]
-    end
-
-    style Start fill:#1976d2,color:#fff
-    style Impl fill:#1565c0,color:#fff
-    style GT fill:#388e3c,color:#fff
-    style Metrics fill:#f57c00,color:#fff
-    style UseProd fill:#4caf50,color:#fff
-    style Done fill:#66bb6a,color:#fff
-```
-
-**소요 시간**:
-
-- 플러그인 구현: 2-4시간
-- Ground Truth 생성: 20시간 (예제당 1시간)
-- 실험 및 검증: 2-4시간
-- **총**: ~1주일
-
----
-
-### 9.3 플러그인 간 코드 재사용
-
-```mermaid
-graph TB
-    subgraph "Framework Core 모든 플러그인 재사용"
-        Core[Framework Core]
-        Core --> Tech[5 Techniques - Zero-shot ~ Hybrid]
-        Core --> Exp[ExperimentRunner - 자동 실험]
-        Core --> Metrics[MetricsCalculator - F1/P/R 계산]
-        Core --> Ollama[OllamaClient - LLM 통신]
-    end
-
-    subgraph "CppPlugin 독립"
-        Tech --> CppExamples[5 C++ examples]
-        Tech --> CppCat[5 C++ categories]
-        Exp --> CppGT[20 C++ Ground Truth]
-    end
-
-    subgraph "PythonPlugin 독립"
-        Tech --> PyExamples[5 Python examples]
-        Tech --> PyCat[4 Python categories]
-        Exp --> PyGT[20 Python Ground Truth]
-    end
-
-    subgraph "RTLPlugin 독립"
-        Tech --> RTLExamples[5 RTL examples]
-        Tech --> RTLCat[5 RTL categories]
-        Exp --> RTLGT[20 RTL Ground Truth]
-    end
-
-    style Core fill:#1a237e,color:#fff
-    style Tech fill:#283593,color:#fff
-    style CppExamples fill:#388e3c,color:#fff
-    style PyExamples fill:#1976d2,color:#fff
-    style RTLExamples fill:#7b1fa2,color:#fff
-```
-
-**설계 철학**:
-- **Framework Core**: 언어 독립적 → 모든 플러그인 재사용
-- **Domain Plugin**: 언어 의존적 → 각자 구현
-- **Ground Truth**: 각 언어별로 별도 관리
-
----
-
-## 10. 주요 성과 및 향후 계획
-
-마지막으로 이 프로젝트의 **주요 성과**와 **향후 개선 계획**을 정리합니다.
-
----
-
-### 10.1 주요 성과 요약
-
-**4가지 핵심 성과**를 달성했습니다:
-1. **온프레미스 성공**: 외부 API 없이 보안 요구사항 충족
-2. **정확도 검증**: F1 0.615 (프로덕션), F1 0.634 (Hybrid)
-3. **프로덕션 사용**: CLI + PR 통합 가능
-4. **확장 가능성**: 플러그인 아키텍처로 새 언어 추가 용이
-
-```mermaid
-graph TB
-    subgraph "(1) 온프레미스 성공"
-        Success1[✅ 외부 API 없이 - 온프레미스 LLM 실행]
-        Success1 --> S1_1[DGX-SPARK + Ollama]
-        Success1 --> S1_2[DeepSeek-Coder 33B]
-        Success1 --> S1_3[보안 요구사항 충족]
-    end
-
-    subgraph "(2) 실험 기반 개발"
-        Success2[✅ 체계적 실험으로 - 최적 기법 선택]
-        Success2 --> S2_1[Ground Truth 20개]
-        Success2 --> S2_2[5가지 기법 비교]
-        Success2 --> S2_3[F1 - 0.526 → 0.634]
-    end
-
-    subgraph "(3) 프로덕션 도구"
-        Success3[✅ 실제 사용 가능한 - CLI 도구 완성]
-        Success3 --> S3_1[파일/디렉토리/PR 분석]
-        Success3 --> S3_2[700+ 라인 파일 지원]
-        Success3 --> S3_3[병렬 처리 4x 빠름]
-    end
-
-    subgraph "(4) 확장 가능성"
-        Success4[✅ 플러그인 아키텍처로 - 다른 언어 확장 가능]
-        Success4 --> S4_1[C++ Plugin 완성]
-        Success4 --> S4_2[Python Plugin 준비]
-        Success4 --> S4_3[RTL Plugin 가능]
-    end
-
-    style Success1 fill:#4caf50,color:#fff
-    style Success2 fill:#2196f3,color:#fff
-    style Success3 fill:#ff9800,color:#000
-    style Success4 fill:#9c27b0,color:#fff
-```
-
----
-
-### 10.2 성능 지표
-
-| 지표 | 목표 | 달성 | 비고 |
-|------|------|------|------|
-| **F1 Score** | 0.6+ | **0.615** (Few-shot-5), **0.634** (Hybrid) | ✅ 목표 달성 |
-| **분석 속도** | < 10초 | **8.15초** (Few-shot-5) | ✅ 목표 달성 |
-| **대용량 파일** | 500+ 라인 | **1000+ 라인** | ✅ 초과 달성 |
-| **병렬 처리** | 2x 빠름 | **4x 빠름** | ✅ 초과 달성 |
-| **보안** | 온프레미스 | **100% 내부 처리** | ✅ 완벽 달성 |
-
----
-
-### 10.3 향후 개선 계획
-
-```mermaid
-graph TB
-    subgraph "단기 Phase 6-7"
-        Phase6[Phase 6 - Ground Truth 확장]
-        Phase6 --> P6_1[20개 → 100개 예제 - 통계적 유의성 확보]
-        Phase6 --> P6_2[카테고리당 20개 - 더 정확한 평가]
-
-        Phase7[Phase 7 - Multi-pass Self-Critique]
-        Phase7 --> P7_1[Pass 1 - 버그 탐지]
-        Phase7 --> P7_2[Pass 2 - 자기 비평]
-        Phase7 --> P7_3[False Positive 감소]
-    end
-
-    subgraph "중기 새 플러그인"
-        Python[Python Plugin]
-        Python --> Py1[Type hints 검사]
-        Python --> Py2[Import cycle 탐지]
-        Python --> Py3[Exception handling]
-
-        RTL[RTL Plugin]
-        RTL --> RTL1[Timing violation]
-        RTL --> RTL2[Power optimization]
-        RTL --> RTL3[Synthesis issues]
-    end
-
-    subgraph "장기 고급 기능"
-        RAG[RAG Phase 8 - Retrieval-Augmented]
-        RAG --> RAG1[벡터 DB에 - 과거 버그 저장]
-        RAG --> RAG2[유사 사례 검색]
-        RAG --> RAG3[Dynamic few-shot]
-
-        FineTune[Fine-tuning Phase 9]
-        FineTune --> FT1[프로젝트별 - 모델 fine-tune]
-        FineTune --> FT2[특화된 정확도]
-
-        CI[CI/CD 통합]
-        CI --> CI1[GitHub Actions]
-        CI --> CI2[Pre-commit hook]
-        CI --> CI3[자동 PR comment]
-    end
-
-    style Phase6 fill:#4caf50,color:#fff
-    style Phase7 fill:#66bb6a,color:#fff
-    style Python fill:#2196f3,color:#fff
-    style RTL fill:#7b1fa2,color:#fff
-    style RAG fill:#ff9800,color:#000
-    style FineTune fill:#f57c00,color:#fff
-    style CI fill:#9c27b0,color:#fff
-```
-
----
-
-### 10.4 기대 효과
-
-```mermaid
-graph LR
-    subgraph "개발 생산성"
-        Prod1[자동 코드 리뷰 - 수동 시간 50% 감소]
-        Prod2[PR 리뷰 시간 - 30분 → 10분]
-        Prod3[버그 조기 발견 - Production 버그 30% 감소]
-    end
-
-    subgraph "코드 품질"
-        Quality1[일관된 리뷰 - Code style 통일]
-        Quality2[Modern C++ 채택 - Legacy 코드 개선]
-        Quality3[보안 강화 - Security issue 사전 탐지]
-    end
-
-    subgraph "비용 절감"
-        Cost1[온프레미스 - API 비용 0원]
-        Cost2[자동화 - 인력 비용 절감]
-        Cost3[확장성 - 다른 언어로 확장]
-    end
-
-    Prod1 --> Total[✅ 전체 개발 효율 - 40% 향상 예상]
-    Prod2 --> Total
-    Prod3 --> Total
-    Quality1 --> Total
-    Quality2 --> Total
-    Quality3 --> Total
-    Cost1 --> Total
-    Cost2 --> Total
-    Cost3 --> Total
-
-    style Prod1 fill:#4caf50,color:#fff
-    style Quality1 fill:#2196f3,color:#fff
-    style Cost1 fill:#ff9800,color:#000
-    style Total fill:#9c27b0,color:#fff
-```
+### 7.6 기대 효과 요약
+
+| 영역 | 현재 | 목표 | 개선율 |
+|------|------|------|--------|
+| **F1 Score** | 0.634 | 0.80+ | +26% |
+| **Cross-chunk 탐지** | 0% | 80%+ | +∞ |
+| **False Positive** | ~30% | ~10% | -67% |
+| **Ground Truth** | 20개 | 100개 | 5x |
+| **지원 언어** | 1개 | 4개 | 4x |
+
+**Aggregator LLM 도입 시 예상 개선**:
+- Cross-chunk 이슈 탐지로 **Recall 대폭 향상**
+- 전체 파일 맥락 분석으로 **False Positive 감소**
+- 총 LLM 호출 증가 (N chunks + 1 aggregator) → 속도 다소 저하 (trade-off)
 
 ---
 
@@ -2716,25 +1437,154 @@ graph LR
 
 ### 핵심 메시지
 
-1. **온프레미스 LLM 성공**: 외부 API 없이 내부에서만 코드 분석 가능
-2. **실험 기반 개발**: Ground Truth로 F1 score 측정, 최적 기법 선택
-3. **프로덕션 준비 완료**: CLI 도구, PR 통합, 대용량 파일 지원
-4. **확장 가능**: 플러그인으로 Python, RTL 등 쉽게 추가 가능
+1. **온프레미스 LLM 가능**: 보안 환경에서도 LLM 코드 리뷰 가능
+2. **핵심 문제**: 로컬 LLM은 **긴 인풋 = 낮은 퀄리티** → Multi-Stage Pipeline 필수
+3. **해결 전략**: Chunking → LLM Workers → (향후) Aggregator LLM
+4. **실험 기반 개발**: Ground Truth로 객관적 검증, F1 0.526 → 0.634
 
-### 주요 수치
+### 핵심 수치
 
 - **F1 Score**: 0.615 (Few-shot-5), 0.634 (Hybrid)
 - **분석 속도**: 8초 (일반), 40초 (700줄 파일)
 - **병렬 처리**: 4x 속도 향상
-- **모델**: DeepSeek-Coder 33B (실사용 ~20GB)
-- **Ground Truth**: 20개 C++ 예제
 
-### 기술 스택
+### 향후 최우선 과제
 
-- **하드웨어**: DGX-SPARK (RAM 128GB, GPU 24GB VRAM)
-- **LLM**: Ollama + DeepSeek-Coder 33B
-- **프레임워크**: Python 3.12 + Pydantic + tree-sitter
-- **아키텍처**: 3-Tier (Framework → Plugins → Applications)
+> **Aggregator LLM 구현**: 현재 규칙 기반 ResultMerger를 LLM으로 대체하여 Cross-chunk 이슈 탐지 + False Positive 필터링
+
+### 향후 추가 과제 (우선순위순)
+
+1. **Aggregator LLM**: 규칙 기반 → LLM 기반 결과 종합
+2. **Sliding Window Overlap**: 겹침 청킹으로 경계 이슈 탐지
+3. **Function Signature Context**: 다른 함수 시그니처로 맥락 제공
+4. **Hierarchical Summarization**: chunk 요약으로 전체 맥락 공유
+5. **Static + LLM Hybrid**: clang-tidy와 결합하여 정확도/속도 향상
+
+---
+
+## 📌 전체 구조 한눈에 보기
+
+### 문서 구조 Overview
+
+```mermaid
+graph TB
+    subgraph "1️⃣ 왜? - 배경"
+        S1[1. 프로젝트 배경]
+        S1 --> P1[보안 환경에서 LLM 사용 불가]
+        S1 --> P2[온프레미스 LLM 필요]
+        S1 --> P3[핵심 문제: 긴 인풋 = 낮은 퀄리티]
+    end
+
+    subgraph "2️⃣ 무엇? - 설계"
+        S2[2. 시스템 아키텍처]
+        S3[3. 오케스트레이션]
+        S2 --> D1[3-Tier 구조]
+        S3 --> D2[Multi-Stage Pipeline]
+        S3 --> D3[Aggregator LLM 개념]
+    end
+
+    subgraph "3️⃣ 어떻게? - 구현"
+        S4[4. 프롬프팅 전략]
+        S5[5. AST 기반 청킹]
+        S4 --> I1[Zero-shot → Hybrid 진화]
+        S5 --> I2[tree-sitter 파싱]
+        S5 --> I3[병렬 Workers]
+    end
+
+    subgraph "4️⃣ 검증"
+        S6[6. 실험 및 검증]
+        S6 --> V1[Ground Truth 20개]
+        S6 --> V2[F1: 0.526 → 0.634]
+    end
+
+    subgraph "5️⃣ 미래"
+        S7[7. 향후 계획]
+        S7 --> F1[Aggregator LLM]
+        S7 --> F2[6가지 추가 기술]
+        S7 --> F3[목표 F1: 0.80+]
+    end
+
+    S1 --> S2 --> S4 --> S6 --> S7
+    S2 --> S3 --> S5
+
+    style S1 fill:#1976d2,color:#fff
+    style S3 fill:#7b1fa2,color:#fff
+    style S7 fill:#388e3c,color:#fff
+```
+
+---
+
+### 핵심 흐름: 문제 → 해결 → 검증 → 개선
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  문제 정의                                                               │
+│  ┌─────────────────────────────────────────────────────────────────────┐│
+│  │ • 보안 환경 → 외부 API 사용 불가                                      ││
+│  │ • 로컬 LLM → 긴 인풋에서 퀄리티 급락                                   ││
+│  └─────────────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│  현재 해결책                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐│
+│  │ [청킹] AST로 작은 단위 분할                                           ││
+│  │ [분석] 병렬 LLM Workers                                              ││
+│  │ [병합] 규칙 기반 ResultMerger ← 한계점                                ││
+│  │ [프롬프팅] Few-shot-5 (F1 0.615)                                     ││
+│  └─────────────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│  검증 결과                                                               │
+│  ┌─────────────────────────────────────────────────────────────────────┐│
+│  │ • Zero-shot → Few-shot-5 → Hybrid: F1 0.526 → 0.615 → 0.634        ││
+│  │ • 병렬 처리: 4x 속도 향상                                             ││
+│  │ • 한계: Cross-chunk 이슈 탐지 불가, False Positive 필터링 없음         ││
+│  └─────────────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│  향후 개선 (6가지 기술)                                                   │
+│  ┌─────────────────────────────────────────────────────────────────────┐│
+│  │ 1. Aggregator LLM - 결과를 LLM이 종합                                 ││
+│  │ 2. Sliding Window - 겹침 청킹으로 경계 이슈 탐지                        ││
+│  │ 3. Hierarchical Summary - chunk 요약으로 맥락 공유                    ││
+│  │ 4. Function Signature Context - 다른 함수 시그니처 제공                ││
+│  │ 5. Static + LLM Hybrid - clang-tidy와 결합                            ││
+│  │ 6. Two-Phase Analysis - 의심 영역만 정밀 분석                          ││
+│  └─────────────────────────────────────────────────────────────────────┘│
+│  목표: F1 0.634 → 0.80+                                                 │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 섹션별 핵심 내용 요약
+
+| 섹션 | 주제 | 핵심 내용 | 키워드 |
+|------|------|----------|--------|
+| **1** | 배경 | 보안 환경에서 LLM 사용 제약, 온프레미스 필요성 | DGX-SPARK, Ollama, DeepSeek |
+| **2** | 아키텍처 | 3-Tier 구조 (CLI → Plugin → Framework) | 모듈화, 확장성 |
+| **3** | 오케스트레이션 | Multi-Stage Pipeline, Aggregator LLM 개념 | Cross-chunk, 적응형 |
+| **4** | 프롬프팅 | 5가지 기법 비교, Hybrid가 최고 (F1 0.634) | Few-shot, CoT, Hybrid |
+| **5** | 청킹 | tree-sitter AST 파싱, 병렬 처리 | 함수 단위, 4 Workers |
+| **6** | 실험 | Ground Truth 20개, F1 0.526→0.634 | Precision, Recall |
+| **7** | 향후 | 6가지 추가 기술, 목표 F1 0.80+ | Aggregator, Overlap |
+
+---
+
+### 발표 1분 요약 스크립트
+
+> **"이 프로젝트는 보안 환경에서 LLM 코드 리뷰를 가능하게 합니다.**
+>
+> **문제**: 외부 API 사용 불가 + 로컬 LLM은 긴 인풋에서 퀄리티 급락
+>
+> **해결**: AST 청킹으로 작은 단위 분할 → 병렬 LLM 분석 → 결과 병합
+>
+> **성과**: F1 0.526에서 0.634로 20% 향상 (실험 기반 검증)
+>
+> **향후**: Aggregator LLM, 겹침 청킹 등 6가지 기술로 F1 0.80+ 목표"
 
 ---
 

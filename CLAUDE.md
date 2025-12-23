@@ -31,6 +31,9 @@ python -m cli.main analyze pr --base main --head feature-branch
 
 # Large files (700+ lines) with chunking
 python -m cli.main analyze file large.cpp --chunk --chunk-size 200
+
+# Alternative: use installed CLI entry point
+llm-framework analyze file src/main.cpp
 ```
 
 ### Running Experiments
@@ -54,23 +57,40 @@ pytest tests/test_chunker.py
 pytest tests/test_chunker.py::test_function_name -v
 ```
 
+### Linting & Formatting
+```bash
+# Format code with black
+black framework/ plugins/ cli/ tests/
+
+# Lint with ruff
+ruff check framework/ plugins/ cli/ tests/
+
+# Type check with mypy
+mypy framework/ plugins/ cli/
+```
+
 ## Architecture
 
 ```
-framework/           # Core LLM framework (domain-agnostic)
-├── techniques/      # Prompting strategies: zero_shot, few_shot, chain_of_thought, hybrid
-├── models.py        # Pydantic data models (AnalysisRequest, AnalysisResult, Issue)
-├── ollama_client.py # Ollama API interface
-├── chunker.py       # AST-based file chunking (tree-sitter)
-├── chunk_analyzer.py # Parallel chunk analysis
-└── result_merger.py  # Deduplicate and merge chunk results
+framework/              # Core LLM framework (domain-agnostic)
+├── techniques/         # Prompting strategies: zero_shot, few_shot, chain_of_thought, hybrid
+│   ├── base.py        # BaseTechnique, SinglePassTechnique, MultiPassTechnique
+│   └── __init__.py    # TechniqueFactory for technique instantiation
+├── models.py           # Pydantic data models (AnalysisRequest, AnalysisResult, Issue)
+├── ollama_client.py    # Ollama API interface
+├── chunker.py          # AST-based file chunking (tree-sitter)
+├── chunk_analyzer.py   # Parallel chunk analysis
+├── result_merger.py    # Deduplicate and merge chunk results
+├── experiment_runner.py # Run experiments on ground truth datasets
+├── evaluation.py       # Metrics calculation helpers
+└── metrics_calculator.py # Precision, recall, F1, token efficiency
 
-plugins/             # Domain-specific knowledge
-├── domain_plugin.py  # Abstract base (DomainPlugin protocol)
-├── cpp_plugin.py     # C++ plugin: 5 categories, 5 few-shot examples
+plugins/                # Domain-specific knowledge
+├── domain_plugin.py    # Abstract base (DomainPlugin protocol)
+├── cpp_plugin.py       # C++ plugin: 5 categories, 5 few-shot examples
 └── production_analyzer.py # Orchestrator for file/dir/PR analysis
 
-cli/main.py          # Click-based CLI entry point
+cli/main.py             # Click-based CLI entry point
 ```
 
 ### Key Abstractions
@@ -96,6 +116,8 @@ cli/main.py          # Click-based CLI entry point
 | hybrid | 0.634 | Critical PRs (4x slower) |
 | chain_of_thought | 0.571 | Modern-cpp detection |
 | zero_shot | 0.526 | Baseline only |
+
+Available technique names in `TechniqueFactory`: `zero_shot`, `few_shot_3`, `few_shot_5`, `few_shot`, `chain_of_thought`, `multi_pass`, `hybrid`, `hybrid_high_precision`, `hybrid_category_specialized`
 
 ## Adding a New Domain Plugin
 

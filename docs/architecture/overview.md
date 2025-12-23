@@ -85,10 +85,10 @@ graph TB
         PA --> Merger[Result Merger]
     end
 
-    style CLI fill:#e1f5ff
-    style PA fill:#fff3e0
-    style Ollama fill:#f3e5f5
-    style CppPlugin fill:#e8f5e9
+    style CLI fill:#1976d2,color:#fff
+    style PA fill:#e65100,color:#fff
+    style Ollama fill:#7b1fa2,color:#fff
+    style CppPlugin fill:#388e3c,color:#fff
 ```
 
 ### Three-Layer Architecture
@@ -118,9 +118,9 @@ graph LR
     E --> F
     E --> G
 
-    style A fill:#bbdefb
-    style D fill:#c8e6c9
-    style F fill:#fff9c4
+    style A fill:#1976d2,color:#fff
+    style D fill:#388e3c,color:#fff
+    style F fill:#f9a825,color:#fff
 ```
 
 **Layer 1**: Domain-agnostic analysis techniques
@@ -158,9 +158,9 @@ graph TD
     Technique --> Result[AnalysisResult]
     Merge --> Result
 
-    style PA fill:#ff9800
-    style Check fill:#ffeb3b
-    style Result fill:#4caf50
+    style PA fill:#e65100,color:#fff
+    style Check fill:#f9a825,color:#fff
+    style Result fill:#2e7d32,color:#fff
 ```
 
 **Key Methods**:
@@ -214,8 +214,8 @@ graph TB
     MP --> |F1: 0.601| MPDesc[Multiple passes, filtering]
     Hybrid --> |F1: 0.634| HybridDesc[Few-shot + CoT + filtering]
 
-    style FS fill:#4caf50
-    style Hybrid fill:#8bc34a
+    style FS fill:#2e7d32,color:#fff
+    style Hybrid fill:#558b2f,color:#fff
 ```
 
 **Winner**: Few-Shot-5 (F1=0.615) for production, Hybrid (F1=0.634) for best performance.
@@ -299,9 +299,9 @@ graph LR
 
     RM --> |deduplicate| Final[Final Result<br/>11 issues]
 
-    style FC fill:#90caf9
-    style CA fill:#ce93d8
-    style RM fill:#a5d6a7
+    style FC fill:#1976d2,color:#fff
+    style CA fill:#7b1fa2,color:#fff
+    style RM fill:#388e3c,color:#fff
 ```
 
 **FileChunker** (`framework/chunker.py`):
@@ -653,11 +653,11 @@ graph TB
         Merge --> Final[Final Result<br/>5 unique issues<br/>sorted by line]
     end
 
-    style LF fill:#ffcdd2
-    style AST fill:#c5cae9
-    style C1 fill:#b2dfdb
-    style A1 fill:#fff9c4
-    style Final fill:#c8e6c9
+    style LF fill:#c62828,color:#fff
+    style AST fill:#3949ab,color:#fff
+    style C1 fill:#00796b,color:#fff
+    style A1 fill:#f9a825,color:#fff
+    style Final fill:#388e3c,color:#fff
 ```
 
 ### Key Implementation Details

@@ -51,12 +51,12 @@ graph LR
     D --> F
     E --> F
 
-    style A fill:#1a237e
-    style B fill:#0d47a1
-    style C fill:#b71c1c
-    style D fill:#b71c1c
-    style E fill:#b71c1c
-    style F fill:#c62828
+    style A fill:#1a237e,color:#fff
+    style B fill:#0d47a1,color:#fff
+    style C fill:#b71c1c,color:#fff
+    style D fill:#b71c1c,color:#fff
+    style E fill:#b71c1c,color:#fff
+    style F fill:#c62828,color:#fff
 ```
 
 ### 해결 방안
@@ -68,11 +68,11 @@ graph TB
     C --> D[Python 프레임워크<br/>이 프로젝트]
     D --> E[✅ 온프레미스<br/>코드 리뷰어]
 
-    style A fill:#004d40
-    style B fill:#00695c
-    style C fill:#00796b
-    style D fill:#00897b
-    style E fill:#4caf50
+    style A fill:#004d40,color:#fff
+    style B fill:#00695c,color:#fff
+    style C fill:#00796b,color:#fff
+    style D fill:#00897b,color:#fff
+    style E fill:#2e7d32,color:#fff
 ```
 
 ### 핵심 가치
@@ -113,14 +113,14 @@ graph TB
         CLI --> User[사용자]
     end
 
-    style HW fill:#1a237e
-    style Ollama fill:#283593
-    style Model fill:#303f9f
-    style Framework fill:#3949ab
-    style Tech fill:#3f51b5
-    style Plugin fill:#5c6bc0
-    style CLI fill:#7986cb
-    style User fill:#9fa8da
+    style HW fill:#1a237e,color:#fff
+    style Ollama fill:#283593,color:#fff
+    style Model fill:#303f9f,color:#fff
+    style Framework fill:#3949ab,color:#fff
+    style Tech fill:#3f51b5,color:#fff
+    style Plugin fill:#5c6bc0,color:#fff
+    style CLI fill:#7986cb,color:#fff
+    style User fill:#512da8,color:#fff
 ```
 
 ### 주요 기술
@@ -180,13 +180,13 @@ graph TB
         OllamaClient --> LLM[DeepSeek-Coder 33B]
     end
 
-    style CLI fill:#1a237e
-    style PA fill:#283593
-    style CppPlugin fill:#303f9f
-    style TechFactory fill:#3949ab
-    style FewShot fill:#4caf50
-    style OllamaClient fill:#5c6bc0
-    style LLM fill:#7986cb
+    style CLI fill:#1a237e,color:#fff
+    style PA fill:#283593,color:#fff
+    style CppPlugin fill:#303f9f,color:#fff
+    style TechFactory fill:#3949ab,color:#fff
+    style FewShot fill:#2e7d32,color:#fff
+    style OllamaClient fill:#5c6bc0,color:#fff
+    style LLM fill:#7986cb,color:#fff
 ```
 
 ### 플러그인 아키텍처
@@ -267,10 +267,10 @@ graph LR
         R5 --> S5[33초<br/>매우 느림]
     end
 
-    style FS5 fill:#4caf50
-    style R3 fill:#66bb6a
-    style S3 fill:#81c784
-    style Hybrid fill:#ffc107
+    style FS5 fill:#2e7d32,color:#fff
+    style R3 fill:#388e3c,color:#fff
+    style S3 fill:#43a047,color:#fff
+    style Hybrid fill:#f9a825,color:#fff
 ```
 
 ### 각 기법 상세 설명
@@ -464,9 +464,9 @@ graph TD
     Q4 -->|Yes| UseFewShot5
     Q4 -->|No| UseHybrid
 
-    style UseFewShot5 fill:#4caf50
-    style UseHybrid fill:#ffc107
-    style UseFewShot3 fill:#2196f3
+    style UseFewShot5 fill:#2e7d32,color:#fff
+    style UseHybrid fill:#f9a825,color:#fff
+    style UseFewShot3 fill:#1976d2,color:#fff
 ```
 
 ---
@@ -515,11 +515,11 @@ graph TB
     Concur --> NeedExample
     Modern --> NeedCoT[⚠️ CoT 필요]
 
-    style Memory fill:#4caf50
-    style Security fill:#4caf50
-    style Perf fill:#66bb6a
-    style Concur fill:#ffc107
-    style Modern fill:#f44336
+    style Memory fill:#2e7d32,color:#fff
+    style Security fill:#2e7d32,color:#fff
+    style Perf fill:#388e3c,color:#fff
+    style Concur fill:#f9a825,color:#fff
+    style Modern fill:#c62828,color:#fff
 ```
 
 ### Phase 5: 대용량 파일 지원
@@ -566,11 +566,11 @@ graph LR
         Merge --> Final[최종 결과<br/>11개 이슈]
     end
 
-    style Large fill:#1a237e
-    style Parser fill:#283593
-    style Chunks fill:#303f9f
-    style Merge fill:#3949ab
-    style Final fill:#4caf50
+    style Large fill:#1a237e,color:#fff
+    style Parser fill:#283593,color:#fff
+    style Chunks fill:#303f9f,color:#fff
+    style Merge fill:#3949ab,color:#fff
+    style Final fill:#2e7d32,color:#fff
 ```
 
 **성과**:
@@ -989,10 +989,10 @@ graph TB
         C1[83/84 통과<br/>98.8%]
     end
 
-    style A2 fill:#4caf50
-    style A3 fill:#66bb6a
-    style B3 fill:#4caf50
-    style C1 fill:#4caf50
+    style A2 fill:#2e7d32,color:#fff
+    style A3 fill:#388e3c,color:#fff
+    style B3 fill:#2e7d32,color:#fff
+    style C1 fill:#2e7d32,color:#fff
 ```
 
 ### 주요 지표
@@ -1063,10 +1063,10 @@ graph TB
     M2 --> L2
     M3 --> L3
 
-    style S1 fill:#4caf50
-    style S2 fill:#4caf50
-    style M1 fill:#2196f3
-    style L1 fill:#9c27b0
+    style S1 fill:#2e7d32,color:#fff
+    style S2 fill:#2e7d32,color:#fff
+    style M1 fill:#1976d2,color:#fff
+    style L1 fill:#7b1fa2,color:#fff
 ```
 
 ---

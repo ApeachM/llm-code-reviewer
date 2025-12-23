@@ -37,11 +37,11 @@ graph TB
     Problem2 --> Cost[높은 인건비]
     Problem3 --> Quality[일관성 없는 품질]
 
-    style Problem1 fill:#1a237e
-    style Block1 fill:#b71c1c
-    style Block2 fill:#b71c1c
-    style Block3 fill:#b71c1c
-    style Risk fill:#c62828
+    style Problem1 fill:#1a237e,color:#fff
+    style Block1 fill:#b71c1c,color:#fff
+    style Block2 fill:#b71c1c,color:#fff
+    style Block3 fill:#b71c1c,color:#fff
+    style Risk fill:#c62828,color:#fff
 ```
 
 **구체적인 문제들**:
@@ -79,13 +79,13 @@ graph LR
     SW3 --> Result2[✅ 자동화<br/>시간 절약]
     SW3 --> Result3[✅ 일관된 품질<br/>F1 0.615]
 
-    style HW fill:#004d40
-    style SW1 fill:#00695c
-    style SW2 fill:#00796b
-    style SW3 fill:#00897b
-    style Result1 fill:#4caf50
-    style Result2 fill:#4caf50
-    style Result3 fill:#4caf50
+    style HW fill:#004d40,color:#fff
+    style SW1 fill:#00695c,color:#fff
+    style SW2 fill:#00796b,color:#fff
+    style SW3 fill:#00897b,color:#fff
+    style Result1 fill:#2e7d32,color:#fff
+    style Result2 fill:#2e7d32,color:#fff
+    style Result3 fill:#2e7d32,color:#fff
 ```
 
 ---
@@ -230,12 +230,12 @@ graph TB
         Result --> User
     end
 
-    style User fill:#1a237e
-    style Framework fill:#283593
-    style Tech fill:#3949ab
-    style Ollama fill:#5c6bc0
-    style Model fill:#7986cb
-    style Result fill:#4caf50
+    style User fill:#1a237e,color:#fff
+    style Framework fill:#283593,color:#fff
+    style Tech fill:#3949ab,color:#fff
+    style Ollama fill:#5c6bc0,color:#fff
+    style Model fill:#7986cb,color:#fff
+    style Result fill:#2e7d32,color:#fff
 ```
 
 ### 3.2 3-Tier 아키텍처
@@ -259,9 +259,9 @@ graph TB
     CLI --> Plugin
     Plugin --> Framework
 
-    style CLI fill:#1a237e
-    style Plugin fill:#283593
-    style Framework fill:#3949ab
+    style CLI fill:#1a237e,color:#fff
+    style Plugin fill:#283593,color:#fff
+    style Framework fill:#3949ab,color:#fff
 ```
 
 **각 계층 설명**:
@@ -371,11 +371,11 @@ graph LR
     Tech3 --> Valid2
     Tech4 --> Valid3
 
-    style Tech1 fill:#1a237e
-    style Tech2 fill:#283593
-    style Valid1 fill:#4caf50
-    style Valid2 fill:#4caf50
-    style Valid3 fill:#4caf50
+    style Tech1 fill:#1a237e,color:#fff
+    style Tech2 fill:#283593,color:#fff
+    style Valid1 fill:#2e7d32,color:#fff
+    style Valid2 fill:#2e7d32,color:#fff
+    style Valid3 fill:#2e7d32,color:#fff
 ```
 
 ### 6.2 비즈니스 성과

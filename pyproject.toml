@@ -1,11 +1,11 @@
 [project]
-name = "llm-framework"
-version = "0.1.0"
-description = "Domain-Agnostic LLM Engineering Research Platform"
+name = "semantic-pr-reviewer"
+version = "1.0.0-alpha"
+description = "LLM-powered semantic code review bot for catching logic errors and intent mismatches"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
-    {name = "LLM Framework Team"}
+    {name = "Semantic PR Review Team"}
 ]
 dependencies = [
     "ollama>=0.1.0",

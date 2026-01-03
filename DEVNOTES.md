@@ -206,5 +206,41 @@ During PR simulation validation, the analyzer incorrectly flagged `const` member
   - Added example 8 (clean code negative example)
 
 ### Next Steps
-- Consider adding category normalization in post-processing
+- ~~Consider adding category normalization in post-processing~~ **DONE in v1.0.4**
 - Improve system prompt to enforce category constraints
+
+---
+
+## 2026-01-03: Category Normalization
+
+### Problem
+LLM sometimes returns categories outside the allowed set (e.g., 'code-quality' instead of 'edge-case-handling'), causing valid detections to be filtered out.
+
+### Solution
+Implemented automatic category normalization in `framework/models.py`:
+
+1. **Direct mapping** for known variations:
+   - `code-quality` → `edge-case-handling`
+   - `logic-error` → `logic-errors`
+   - `resource-leak` → `api-misuse`
+   - etc.
+
+2. **Fuzzy matching** based on keywords:
+   - Contains 'logic', 'boolean', 'operator' → `logic-errors`
+   - Contains 'api', 'resource', 'leak' → `api-misuse`
+   - Contains 'quality', 'check', 'validation' → `edge-case-handling`
+
+3. **Case-insensitive** processing
+
+### Results
+
+| Test File | Before (v1.0.3) | After (v1.0.4) |
+|-----------|-----------------|----------------|
+| pr_simulation.cpp | 3 issues | **5 issues** |
+| verilator_style_bugs.cpp | 5 issues | 5 issues |
+
+**Detection improvement**: +66% on pr_simulation.cpp
+
+### Files Modified
+- `framework/models.py`: Added `CATEGORY_NORMALIZATION_MAP`, `normalize_category()` function
+- `tests/test_phase0_integration.py`: Added `test_category_normalization` test

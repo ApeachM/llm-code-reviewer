@@ -9,6 +9,108 @@ from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 
 
+# Category normalization mapping: maps common LLM category variations to allowed categories
+CATEGORY_NORMALIZATION_MAP: Dict[str, str] = {
+    # Direct mappings (allowed categories)
+    'logic-errors': 'logic-errors',
+    'api-misuse': 'api-misuse',
+    'semantic-inconsistency': 'semantic-inconsistency',
+    'edge-case-handling': 'edge-case-handling',
+    'code-intent-mismatch': 'code-intent-mismatch',
+
+    # Common variations -> edge-case-handling
+    'code-quality': 'edge-case-handling',
+    'error-handling': 'edge-case-handling',
+    'null-check': 'edge-case-handling',
+    'boundary-check': 'edge-case-handling',
+    'division-by-zero': 'edge-case-handling',
+    'empty-check': 'edge-case-handling',
+    'input-validation': 'edge-case-handling',
+
+    # Common variations -> logic-errors
+    'logic-error': 'logic-errors',
+    'logical-error': 'logic-errors',
+    'off-by-one': 'logic-errors',
+    'boolean-logic': 'logic-errors',
+    'integer-division': 'logic-errors',
+    'arithmetic-error': 'logic-errors',
+    'operator-error': 'logic-errors',
+
+    # Common variations -> api-misuse
+    'resource-leak': 'api-misuse',
+    'memory-leak': 'api-misuse',
+    'file-leak': 'api-misuse',
+    'api-usage': 'api-misuse',
+    'cleanup-missing': 'api-misuse',
+
+    # Common variations -> semantic-inconsistency
+    'naming-issue': 'semantic-inconsistency',
+    'side-effect': 'semantic-inconsistency',
+    'documentation-mismatch': 'semantic-inconsistency',
+    'misleading-name': 'semantic-inconsistency',
+
+    # Common variations -> code-intent-mismatch
+    'requirement-mismatch': 'code-intent-mismatch',
+    'specification-mismatch': 'code-intent-mismatch',
+}
+
+ALLOWED_CATEGORIES = {
+    'logic-errors',           # Off-by-one, wrong operators, boolean logic mistakes
+    'api-misuse',             # Wrong API usage, missing cleanup in error paths
+    'semantic-inconsistency', # Code behavior doesn't match naming/docs
+    'edge-case-handling',     # Missing boundary checks, unhandled edge cases
+    'code-intent-mismatch'    # Code doesn't match PR description/requirements
+}
+
+
+def normalize_category(category: str) -> str:
+    """
+    Normalize a category string to one of the allowed categories.
+
+    Args:
+        category: Raw category string from LLM
+
+    Returns:
+        Normalized category string
+
+    Raises:
+        ValueError: If category cannot be normalized
+    """
+    # Lowercase and strip whitespace
+    normalized = category.lower().strip()
+
+    # Direct lookup
+    if normalized in CATEGORY_NORMALIZATION_MAP:
+        return CATEGORY_NORMALIZATION_MAP[normalized]
+
+    # Try with hyphens replaced by underscores and vice versa
+    alt_normalized = normalized.replace('_', '-')
+    if alt_normalized in CATEGORY_NORMALIZATION_MAP:
+        return CATEGORY_NORMALIZATION_MAP[alt_normalized]
+
+    alt_normalized = normalized.replace('-', '_')
+    if alt_normalized in CATEGORY_NORMALIZATION_MAP:
+        return CATEGORY_NORMALIZATION_MAP[alt_normalized]
+
+    # Fuzzy matching based on keywords
+    if 'logic' in normalized or 'boolean' in normalized or 'operator' in normalized:
+        return 'logic-errors'
+    if 'api' in normalized or 'resource' in normalized or 'leak' in normalized:
+        return 'api-misuse'
+    if 'semantic' in normalized or 'naming' in normalized or 'side' in normalized:
+        return 'semantic-inconsistency'
+    if 'edge' in normalized or 'boundary' in normalized or 'empty' in normalized or 'null' in normalized:
+        return 'edge-case-handling'
+    if 'intent' in normalized or 'requirement' in normalized or 'mismatch' in normalized:
+        return 'code-intent-mismatch'
+
+    # Default fallback for quality-related terms
+    if 'quality' in normalized or 'check' in normalized or 'validation' in normalized:
+        return 'edge-case-handling'
+
+    raise ValueError(f"Cannot normalize category '{category}' to allowed categories: {ALLOWED_CATEGORIES}")
+
+
 class Issue(BaseModel):
     """Represents a code issue detected by LLM analysis."""
 
@@ -35,21 +137,20 @@ class Issue(BaseModel):
     @classmethod
     def validate_category(cls, v: str) -> str:
         """
-        Validate category is one of the allowed semantic-focused values.
+        Validate and normalize category to one of the allowed semantic-focused values.
 
         These categories focus on issues that require understanding code intent
         and cannot be detected by static/dynamic analysis tools (ASan, TSan, clang-tidy).
+
+        Category normalization is applied to handle common LLM variations:
+        - 'code-quality' -> 'edge-case-handling'
+        - 'logic-error' -> 'logic-errors'
+        - etc.
         """
-        allowed = {
-            'logic-errors',           # Off-by-one, wrong operators, boolean logic mistakes
-            'api-misuse',             # Wrong API usage, missing cleanup in error paths
-            'semantic-inconsistency', # Code behavior doesn't match naming/docs
-            'edge-case-handling',     # Missing boundary checks, unhandled edge cases
-            'code-intent-mismatch'    # Code doesn't match PR description/requirements
-        }
-        if v not in allowed:
-            raise ValueError(f"Category must be one of {allowed}, got '{v}'")
-        return v
+        try:
+            return normalize_category(v)
+        except ValueError:
+            raise ValueError(f"Category must be one of {ALLOWED_CATEGORIES}, got '{v}'")
 
     @field_validator('severity')
     @classmethod

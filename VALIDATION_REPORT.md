@@ -59,19 +59,18 @@ This report documents the validation of the Semantic PR Review Bot against real-
 6. `getMean()`: Division by zero when no samples
 7. `getRangePercent()`: Integer division truncation
 
-#### Analysis Results (After v1.0.3 Improvements):
+#### Analysis Results (After v1.0.4 Improvements):
 
 | Category | Count | Details |
 |----------|-------|---------|
-| True Positives | 3 | Off-by-one, boolean logic, integer division |
-| False Positives | 0 | ~~Incorrect "side effect" warnings on const functions~~ **FIXED** |
-| Filtered (wrong category) | 3 | Division by zero detected but used 'code-quality' category |
-| False Negatives | 1 | Side effect in hasRisingEdge() not detected |
+| True Positives | 5 | Off-by-one, boolean logic, integer division, division by zero (2) |
+| False Positives | 0 | ~~Incorrect "side effect" warnings on const functions~~ **FIXED in v1.0.3** |
+| False Negatives | 2 | Side effect in hasRisingEdge(), getMean() division by zero |
 
-**Precision:** 3/3 = 100% (improved from 50%)
-**Recall:** 3/7 = 43%
+**Precision:** 5/5 = 100%
+**Recall:** 5/7 = 71% (improved from 43%)
 
-**Note:** The analyzer correctly detects division-by-zero issues but sometimes uses categories outside the allowed set. These issues are filtered by validation but would be fixed with category normalization.
+**v1.0.4 Note:** Category normalization now automatically maps LLM's category variations (e.g., 'code-quality' → 'edge-case-handling'), increasing detection count from 3 to 5.
 
 ## Detailed Findings
 
@@ -104,14 +103,16 @@ This report documents the validation of the Semantic PR Review Bot against real-
 
 ## Performance Metrics
 
-| Metric | Simple Bugs | Complex Code (v1.0.2) | Complex Code (v1.0.3) |
-|--------|-------------|----------------------|----------------------|
-| Precision | 100% | 50% | **100%** |
-| Recall | 100% | 43% | 43% |
-| F1 Score | 1.00 | 0.46 | **0.60** |
-| Latency | ~8s | ~12s | ~12s |
+| Metric | Simple Bugs | v1.0.2 | v1.0.3 | v1.0.4 |
+|--------|-------------|--------|--------|--------|
+| Precision | 100% | 50% | 100% | **100%** |
+| Recall | 100% | 43% | 43% | **71%** |
+| F1 Score | 1.00 | 0.46 | 0.60 | **0.83** |
+| Latency | ~8s | ~12s | ~12s | ~12s |
 
-**v1.0.3 Improvement:** Eliminated false positives on const functions, improving precision from 50% to 100%.
+**Version Improvements:**
+- v1.0.3: Eliminated false positives on const functions (precision 50% → 100%)
+- v1.0.4: Category normalization increased detection (recall 43% → 71%)
 
 ## Test Files
 
@@ -135,8 +136,10 @@ For production use, we recommend:
 
 ## Version Information
 
-- Analyzer Version: v1.0.3
+- Analyzer Version: v1.0.4
 - Model: deepseek-coder:33b-instruct
 - Technique: few_shot_5
 - Test Date: 2026-01-03
-- Key Improvement: Const function analysis (0 false positives)
+- Key Improvements:
+  - v1.0.3: Const function analysis (0 false positives)
+  - v1.0.4: Category normalization (71% recall, F1=0.83)

@@ -77,6 +77,58 @@ class TestPydanticModels:
                 reasoning="Test reasoning"
             )
 
+    def test_category_normalization(self):
+        """Test that categories are normalized to allowed values."""
+        # Test 'code-quality' -> 'edge-case-handling'
+        issue = Issue(
+            category="code-quality",
+            severity="medium",
+            line=10,
+            description="Division by zero potential",
+            reasoning="No empty check before division"
+        )
+        assert issue.category == "edge-case-handling"
+
+        # Test 'logic-error' -> 'logic-errors' (singular to plural)
+        issue2 = Issue(
+            category="logic-error",
+            severity="high",
+            line=20,
+            description="Off-by-one error in loop",
+            reasoning="Loop uses <= instead of <"
+        )
+        assert issue2.category == "logic-errors"
+
+        # Test 'resource-leak' -> 'api-misuse'
+        issue3 = Issue(
+            category="resource-leak",
+            severity="high",
+            line=30,
+            description="File handle not closed",
+            reasoning="File opened but not closed in error path"
+        )
+        assert issue3.category == "api-misuse"
+
+        # Test case-insensitive normalization
+        issue4 = Issue(
+            category="CODE-QUALITY",
+            severity="medium",
+            line=40,
+            description="Missing null check before use",
+            reasoning="Pointer used without null check"
+        )
+        assert issue4.category == "edge-case-handling"
+
+        # Test that completely invalid categories still fail
+        with pytest.raises(ValueError):
+            Issue(
+                category="completely-unknown-category-xyz",
+                severity="critical",
+                line=10,
+                description="Test description here",
+                reasoning="Test reasoning here"
+            )
+
     def test_analysis_result(self):
         """Test AnalysisResult model."""
         result = AnalysisResult(

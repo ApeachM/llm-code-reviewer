@@ -57,13 +57,13 @@ class TestOllamaClient:
         client = OllamaClient("deepseek-coder:33b")
 
         # Valid JSON array
-        response1 = '[{"category": "memory-safety", "severity": "critical"}]'
+        response1 = '[{"category": "logic-errors", "severity": "critical"}]'
         parsed1 = client.parse_json_response(response1)
         assert len(parsed1) == 1
-        assert parsed1[0]['category'] == 'memory-safety'
+        assert parsed1[0]['category'] == 'logic-errors'
 
         # JSON with surrounding text
-        response2 = 'Here are the issues:\n[{"category": "performance"}]\nDone.'
+        response2 = 'Here are the issues:\n[{"category": "api-misuse"}]\nDone.'
         parsed2 = client.parse_json_response(response2)
         assert len(parsed2) == 1
 

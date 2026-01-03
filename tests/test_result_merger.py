@@ -9,7 +9,7 @@ from framework.result_merger import ResultMerger
 from framework.models import AnalysisResult, Issue
 
 
-def create_issue(line: int, category: str = 'memory-safety', description: str = None, reasoning: str = None):
+def create_issue(line: int, category: str = 'logic-errors', description: str = None, reasoning: str = None):
     """Helper function to create an Issue."""
     return Issue(
         category=category,
@@ -72,12 +72,12 @@ def test_merge_multiple_results():
 def test_merge_deduplicates_issues():
     """Test that duplicate issues are removed."""
     # Same issue reported from two chunks
-    issue1 = create_issue(15, category='memory-safety',
-                         description='Memory leak description',
-                         reasoning='Short reasoning for memory leak issue')
-    issue2 = create_issue(15, category='memory-safety',
-                         description='Memory leak description',
-                         reasoning='Much longer and more detailed reasoning for the memory leak issue with lots of explanation')
+    issue1 = create_issue(15, category='logic-errors',
+                         description='Off-by-one error description',
+                         reasoning='Short reasoning for off-by-one issue')
+    issue2 = create_issue(15, category='logic-errors',
+                         description='Off-by-one error description',
+                         reasoning='Much longer and more detailed reasoning for the off-by-one error with lots of explanation')
 
     result1 = create_result('test.cpp', [issue1], chunk_id='chunk1')
     result2 = create_result('test.cpp', [issue2], chunk_id='chunk2')
@@ -135,8 +135,8 @@ def test_combine_metadata_with_errors():
 
 def test_deduplicate_same_line_different_category():
     """Test that issues on same line but different categories are kept."""
-    issue1 = create_issue(25, category='memory-safety')
-    issue2 = create_issue(25, category='performance')
+    issue1 = create_issue(25, category='logic-errors')
+    issue2 = create_issue(25, category='api-misuse')
 
     result = create_result('test.cpp', [issue1, issue2])
 
@@ -149,8 +149,8 @@ def test_deduplicate_same_line_different_category():
 
 def test_deduplicate_different_lines_same_category():
     """Test that issues on different lines are kept."""
-    issue1 = create_issue(10, category='memory-safety')
-    issue2 = create_issue(20, category='memory-safety')
+    issue1 = create_issue(10, category='logic-errors')
+    issue2 = create_issue(20, category='logic-errors')
 
     result = create_result('test.cpp', [issue1, issue2])
 

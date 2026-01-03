@@ -31,21 +31,29 @@ class CppPlugin(DomainPlugin):
 
     @property
     def categories(self) -> List[str]:
-        """Issue categories for C++."""
+        """Semantic issue categories for C++.
+
+        These focus on issues that static/dynamic analysis tools CANNOT detect.
+        Memory safety, performance, and concurrency are handled by ASan, TSan, clang-tidy.
+        """
         return [
-            'memory-safety',
-            'modern-cpp',
-            'performance',
-            'security',
-            'concurrency'
+            'logic-errors',           # Off-by-one, wrong operators, boolean logic
+            'api-misuse',             # Missing cleanup, wrong parameter order
+            'semantic-inconsistency', # Code behavior doesn't match naming/docs
+            'edge-case-handling',     # Missing boundary checks
+            'code-intent-mismatch'    # Implementation doesn't match requirements
         ]
 
     def get_few_shot_examples(self, num_examples: int = 5) -> List[Dict[str, Any]]:
         """
-        Get curated few-shot examples.
+        Get curated few-shot examples for semantic issue detection.
 
-        These 5 examples were selected based on Phase 2 findings to provide
-        the best coverage and accuracy.
+        These 5 examples focus on issues that static/dynamic analysis CANNOT detect:
+        - Logic errors (off-by-one, wrong operators)
+        - API misuse (missing cleanup in error paths)
+        - Semantic inconsistency (code doesn't match naming)
+        - Edge case handling (missing boundary checks)
+        - Clean code (negative example for calibration)
 
         Args:
             num_examples: Number of examples (default 5 for optimal performance)
@@ -53,75 +61,120 @@ class CppPlugin(DomainPlugin):
         Returns:
             List of example dicts
         """
-        # Example 1: Memory leak (high-value, easy to detect)
+        # Example 1: Logic error - off-by-one in loop
         ex1 = {
-            'id': 'example_001',
-            'description': 'Memory leak - raw pointer never deleted',
-            'code': 'int* ptr = new int(10);\n*ptr = 42;\nreturn 0;\n// missing: delete ptr;',
+            'id': 'semantic_001',
+            'description': 'Off-by-one error in loop condition',
+            'code': '''std::vector<int> nums = {1, 2, 3, 4, 5};
+int sum = 0;
+for (int i = 0; i <= nums.size(); i++) {
+    sum += nums[i];
+}
+return sum;''',
             'issues': [
                 {
-                    'category': 'memory-safety',
-                    'severity': 'critical',
-                    'line': 1,
-                    'description': 'Memory leak - dynamically allocated pointer never deleted',
-                    'reasoning': 'Pointer allocated with \'new\' on line 1 but no corresponding \'delete\'. Memory leak on every execution.'
-                }
-            ]
-        }
-
-        # Example 2: Use-after-free (critical safety issue)
-        ex2 = {
-            'id': 'example_002',
-            'description': 'Use-after-free bug',
-            'code': 'int* ptr = new int(100);\ndelete ptr;\nstd::cout << *ptr << std::endl; // use after free!',
-            'issues': [
-                {
-                    'category': 'memory-safety',
+                    'category': 'logic-errors',
                     'severity': 'critical',
                     'line': 3,
-                    'description': 'Use-after-free - accessing pointer after deletion',
-                    'reasoning': 'Pointer deleted on line 2, then dereferenced on line 3. Undefined behavior.'
+                    'description': 'Off-by-one error: loop uses <= instead of <',
+                    'reasoning': 'Loop condition i <= nums.size() allows i to equal size (5), causing out-of-bounds access at nums[5]. Should use i < nums.size().'
                 }
             ]
         }
 
-        # Example 3: Modern C++ - raw pointer should use unique_ptr
+        # Example 2: API misuse - file handle not closed in error path
+        ex2 = {
+            'id': 'semantic_002',
+            'description': 'Resource leak in error path',
+            'code': '''bool processFile(const std::string& path) {
+    FILE* f = fopen(path.c_str(), "r");
+    if (!f) return false;
+
+    char buffer[1024];
+    if (fread(buffer, 1, 1024, f) == 0) {
+        return false;  // Error: file not closed!
+    }
+
+    fclose(f);
+    return true;
+}''',
+            'issues': [
+                {
+                    'category': 'api-misuse',
+                    'severity': 'high',
+                    'line': 7,
+                    'description': 'File handle leaked in error path',
+                    'reasoning': 'fopen() on line 2 succeeds, but early return on line 7 skips fclose() on line 10. File descriptor leaked on read error. Use RAII or add fclose() before return.'
+                }
+            ]
+        }
+
+        # Example 3: Semantic inconsistency - getter modifies state
         ex3 = {
-            'id': 'example_006',
-            'description': 'Raw pointer should use unique_ptr',
-            'code': 'Widget* w = new Widget(42);\nstd::cout << w->value << std::endl;\ndelete w;',
+            'id': 'semantic_003',
+            'description': 'Function name implies read-only but modifies state',
+            'code': '''class PriceCalculator {
+    double price_;
+    bool discountApplied_ = false;
+
+public:
+    double getDiscountedPrice() {
+        discountApplied_ = true;  // Side effect!
+        return price_ * 0.9;
+    }
+};''',
             'issues': [
                 {
-                    'category': 'modern-cpp',
+                    'category': 'semantic-inconsistency',
                     'severity': 'medium',
-                    'line': 1,
-                    'description': 'Use std::unique_ptr instead of raw pointer',
-                    'reasoning': 'Manual memory management with new/delete. Use std::unique_ptr for automatic cleanup and exception safety.'
+                    'line': 7,
+                    'description': 'Getter function has side effect',
+                    'reasoning': 'Function named "getDiscountedPrice" implies read-only operation, but line 7 modifies member state. Violates principle of least surprise. Either rename to "applyDiscount()" or remove side effect.'
                 }
             ]
         }
 
-        # Example 4: Concurrency - data race
+        # Example 4: Edge case handling - no empty check
         ex4 = {
-            'id': 'example_015',
-            'description': 'Data race - shared variable without synchronization',
-            'code': 'int counter = 0;\nvoid inc() { for(int i=0; i<1000; i++) counter++; }\nstd::thread t1(inc);\nstd::thread t2(inc);',
+            'id': 'semantic_004',
+            'description': 'Missing empty container check',
+            'code': '''double calculateAverage(const std::vector<double>& values) {
+    double sum = 0.0;
+    for (const auto& v : values) {
+        sum += v;
+    }
+    return sum / values.size();  // Division by zero if empty!
+}''',
             'issues': [
                 {
-                    'category': 'concurrency',
-                    'severity': 'critical',
-                    'line': 2,
-                    'description': 'Data race - unsynchronized access to shared variable',
-                    'reasoning': 'Variable \'counter\' accessed by multiple threads without synchronization. Use std::mutex or std::atomic.'
+                    'category': 'edge-case-handling',
+                    'severity': 'high',
+                    'line': 6,
+                    'description': 'Division by zero when vector is empty',
+                    'reasoning': 'No check for empty vector before division. If values.size() == 0, division by zero occurs. Add early return or guard: if (values.empty()) return 0.0;'
                 }
             ]
         }
 
-        # Example 5: Clean code (negative example)
+        # Example 5: Clean code (negative example - no issues)
         ex5 = {
-            'id': 'example_017',
-            'description': 'Clean code with smart pointers - no issues',
-            'code': 'std::unique_ptr<int> ptr = std::make_unique<int>(42);\nstd::cout << *ptr << std::endl;\nreturn 0;',
+            'id': 'semantic_005',
+            'description': 'Well-written code with proper error handling',
+            'code': '''std::optional<double> safeDivide(double a, double b) {
+    if (b == 0.0) {
+        return std::nullopt;
+    }
+    return a / b;
+}
+
+void processData(const std::vector<int>& data) {
+    if (data.empty()) {
+        return;
+    }
+    for (size_t i = 0; i < data.size(); ++i) {
+        process(data[i]);
+    }
+}''',
             'issues': []
         }
 
@@ -130,40 +183,57 @@ class CppPlugin(DomainPlugin):
 
     def get_system_prompt(self) -> str:
         """
-        Get C++-specific system prompt.
+        Get C++-specific system prompt focused on semantic issues.
+
+        This prompt is designed to complement (not replace) static/dynamic analysis tools:
+        - AddressSanitizer/Valgrind: memory errors
+        - ThreadSanitizer: data races
+        - clang-tidy: performance, modernization
 
         Returns:
-            System prompt for C++ analysis
+            System prompt for semantic C++ analysis
         """
-        return """You are an expert C++ code reviewer. Analyze code for issues in these categories:
+        return """You are an expert C++ code reviewer specializing in SEMANTIC issues.
 
-**Categories:**
-- memory-safety: memory leaks, use-after-free, double free, buffer overflows, null dereference
-- modern-cpp: opportunities to use modern C++ features (smart pointers, std::array, nullptr, auto, range-for)
-- performance: inefficient operations, unnecessary copies, string concatenation in loops
-- security: hardcoded credentials, SQL injection, input validation, buffer overflows
-- concurrency: data races, deadlocks, missing synchronization
+**IMPORTANT CONTEXT:**
+Your company already uses comprehensive static/dynamic analysis:
+- AddressSanitizer & Valgrind: memory leaks, use-after-free, buffer overflows
+- ThreadSanitizer: data races, deadlocks
+- clang-tidy: performance issues, modernization, style
+
+DO NOT report issues these tools can detect. Focus ONLY on semantic issues that require understanding code INTENT.
+
+**Categories (Semantic Focus):**
+- logic-errors: Off-by-one errors, wrong comparison operators (< vs <=), incorrect boolean logic, inverted conditions
+- api-misuse: Missing cleanup in error paths, wrong parameter order, incorrect return value handling, violating API contracts
+- semantic-inconsistency: Function behavior doesn't match its name, code contradicts comments/documentation, misleading variable names
+- edge-case-handling: Missing empty/null checks before access, unhandled boundary conditions, missing error cases
+- code-intent-mismatch: Implementation doesn't match PR description or stated requirements (if provided)
 
 **Severity Levels:**
-- critical: Security vulnerability or crash-causing bug
-- high: Significant correctness or performance issue
-- medium: Code quality or maintainability issue
-- low: Minor style or optimization opportunity
+- critical: Will cause crash, data corruption, or security vulnerability at runtime
+- high: Significant logic error that produces wrong results
+- medium: Code quality issue that could lead to bugs during maintenance
+- low: Minor semantic issue, potential confusion for future developers
 
 **Response Format:**
 Respond with a JSON array of issues. Each issue must have:
-- category: one of the above categories
+- category: one of the semantic categories above
 - severity: critical, high, medium, or low
 - line: line number where issue occurs (1-indexed)
 - description: brief description (10-50 words)
-- reasoning: detailed explanation of why this is an issue (20-100 words)
+- reasoning: detailed explanation of the semantic problem (20-100 words)
 
-If no issues are found, respond with an empty array: []
+If no semantic issues are found, respond with an empty array: []
 
-**Important:**
-- Only report real issues with clear negative impact
-- Avoid false positives - be conservative
-- Focus on actionable issues that developers should fix
+**Critical Guidelines:**
+- DO NOT report memory leaks, data races, or performance issues (tools handle these)
+- DO NOT suggest using smart pointers, RAII, or modern C++ features (clang-tidy handles this)
+- FOCUS on logic errors that require understanding what the code is trying to do
+- FOCUS on API misuse patterns in error handling paths
+- FOCUS on mismatches between code behavior and naming/documentation
+- Be CONSERVATIVE - only report issues you are confident about
+- Explain WHY this is a semantic issue, not just what the code does
 """
 
     def should_analyze_file(self, file_path: Path) -> bool:

@@ -14,7 +14,7 @@ class Issue(BaseModel):
 
     category: str = Field(
         ...,
-        description="Issue category: memory-safety, modern-cpp, performance, security, concurrency"
+        description="Issue category: logic-errors, api-misuse, semantic-inconsistency, edge-case-handling, code-intent-mismatch"
     )
     severity: str = Field(
         ...,
@@ -34,8 +34,19 @@ class Issue(BaseModel):
     @field_validator('category')
     @classmethod
     def validate_category(cls, v: str) -> str:
-        """Validate category is one of the allowed values."""
-        allowed = {'memory-safety', 'modern-cpp', 'performance', 'security', 'concurrency'}
+        """
+        Validate category is one of the allowed semantic-focused values.
+
+        These categories focus on issues that require understanding code intent
+        and cannot be detected by static/dynamic analysis tools (ASan, TSan, clang-tidy).
+        """
+        allowed = {
+            'logic-errors',           # Off-by-one, wrong operators, boolean logic mistakes
+            'api-misuse',             # Wrong API usage, missing cleanup in error paths
+            'semantic-inconsistency', # Code behavior doesn't match naming/docs
+            'edge-case-handling',     # Missing boundary checks, unhandled edge cases
+            'code-intent-mismatch'    # Code doesn't match PR description/requirements
+        }
         if v not in allowed:
             raise ValueError(f"Category must be one of {allowed}, got '{v}'")
         return v

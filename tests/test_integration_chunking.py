@@ -56,7 +56,7 @@ def mock_production_analyzer(monkeypatch):
         return AnalysisResult(
             issues=[
                 Issue(
-                    category='memory-safety',
+                    category='logic-errors',
                     severity='medium',
                     line=5,
                     description='Test issue description for integration testing',
@@ -205,7 +205,7 @@ def test_error_handling_in_chunks(mock_production_analyzer, temp_large_cpp_file,
         return AnalysisResult(
             issues=[
                 Issue(
-                    category='security',
+                    category='edge-case-handling',
                     severity='low',
                     line=5,
                     description='Test issue for error handling integration test',
@@ -247,10 +247,10 @@ def test_empty_result_merging(mock_production_analyzer, temp_large_cpp_file):
             return AnalysisResult(
                 issues=[
                     Issue(
-                        category='performance',
+                        category='api-misuse',
                         severity='medium',
                         line=10,
-                        description='Performance issue in alternating chunks test',
+                        description='API misuse issue in alternating chunks test',
                         reasoning='This is test reasoning with many characters for validation purposes and requirements'
                     )
                 ],
@@ -280,7 +280,7 @@ def test_sorted_issues_in_result(mock_production_analyzer, temp_large_cpp_file):
         return AnalysisResult(
             issues=[
                 Issue(
-                    category='concurrency',
+                    category='semantic-inconsistency',
                     severity='low',
                     line=100 + (call_count[0] * 5),
                     description=f'Issue at line {100 + (call_count[0] * 5)} for sorting test',

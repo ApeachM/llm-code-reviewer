@@ -24,11 +24,11 @@ def mock_analyzer():
             file_path=request.file_path,
             issues=[
                 Issue(
-                    category='memory-safety',
+                    category='logic-errors',
                     severity='critical',
                     line=10,  # Line in chunk+context coordinates
-                    description='Memory leak',
-                    reasoning='Pointer never deleted'
+                    description='Off-by-one error',
+                    reasoning='Loop bounds incorrect'
                 )
             ],
             metadata={'tokens_used': 100, 'latency': 5.0}
@@ -117,7 +117,7 @@ def test_adjust_line_numbers(mock_analyzer, sample_chunk):
         file_path='test.cpp',
         issues=[
             Issue(
-                category='memory-safety',
+                category='logic-errors',
                 severity='critical',
                 line=5,  # Line in chunk+context (context=2 lines + blank)
                 description='Issue at line 5 description',
@@ -153,10 +153,10 @@ def test_adjust_line_numbers_no_context(mock_analyzer):
         file_path='test.cpp',
         issues=[
             Issue(
-                category='performance',
+                category='api-misuse',
                 severity='medium',
                 line=3,  # Line 3 in chunk
-                description='Performance issue description',
+                description='API misuse issue description',
                 reasoning='This is a test reasoning with at least 20 characters'
             )
         ],
@@ -179,7 +179,7 @@ def test_adjust_line_numbers_bounds_clamping(mock_analyzer, sample_chunk):
         file_path='test.cpp',
         issues=[
             Issue(
-                category='memory-safety',
+                category='logic-errors',
                 severity='critical',
                 line=1000,  # Way out of bounds
                 description='Out of bounds issue description',

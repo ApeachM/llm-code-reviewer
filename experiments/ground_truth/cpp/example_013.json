@@ -1,22 +1,15 @@
 {
   "id": "example_013",
-  "description": "Hardcoded credentials - security vulnerability",
-  "code": "#include <string>\n\nconst std::string API_KEY = \"sk-1234567890abcdef\"; // hardcoded secret!\nconst std::string PASSWORD = \"admin123\";\n\nvoid authenticate() {\n    // use API_KEY and PASSWORD\n}",
-  "file_path": "hardcoded_credentials.cpp",
+  "description": "Missing empty check before accessing first element",
+  "code": "double calculateAverage(const std::vector<double>& values) {\n    double sum = 0.0;\n    for (const auto& v : values) {\n        sum += v;\n    }\n    return sum / values.size();  // Division by zero if empty!\n}",
+  "file_path": "missing_empty_check.cpp",
   "expected_issues": [
     {
-      "category": "security",
+      "category": "edge-case-handling",
       "severity": "critical",
-      "line": 3,
-      "description": "Hardcoded API key in source code",
-      "reasoning": "API key is hardcoded as a string literal. Credentials should never be hardcoded - use environment variables, secure vaults, or configuration files with restricted permissions."
-    },
-    {
-      "category": "security",
-      "severity": "critical",
-      "line": 4,
-      "description": "Hardcoded password in source code",
-      "reasoning": "Password is hardcoded as a string literal. This is a critical security vulnerability - credentials should be loaded from secure external sources."
+      "line": 6,
+      "description": "Division by zero when vector is empty",
+      "reasoning": "No check for empty vector before division. If values.size() == 0, division by zero occurs causing undefined behavior. Add guard: if (values.empty()) return 0.0;"
     }
   ]
 }

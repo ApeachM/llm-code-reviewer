@@ -1,15 +1,15 @@
 {
   "id": "example_003",
-  "description": "Double free vulnerability",
-  "code": "int* ptr = new int(50);\ndelete ptr;\ndelete ptr; // double free!",
-  "file_path": "double_free.cpp",
+  "description": "Boolean logic error - wrong operator in condition",
+  "code": "bool isValidRange(int value, int min, int max) {\n    return value >= min || value <= max;\n}",
+  "file_path": "boolean_logic_error.cpp",
   "expected_issues": [
     {
-      "category": "memory-safety",
-      "severity": "critical",
-      "line": 3,
-      "description": "Double free - pointer deleted twice",
-      "reasoning": "Pointer 'ptr' is deleted on line 2, then deleted again on line 3. Double free leads to heap corruption and potential crashes or security vulnerabilities."
+      "category": "logic-errors",
+      "severity": "high",
+      "line": 2,
+      "description": "Wrong boolean operator - uses OR instead of AND",
+      "reasoning": "Function intends to check if value is within [min, max] range, but uses || (OR) instead of && (AND). Current logic returns true for ANY value since one condition is always true."
     }
   ]
 }

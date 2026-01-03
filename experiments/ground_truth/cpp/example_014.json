@@ -1,15 +1,15 @@
 {
   "id": "example_014",
-  "description": "SQL injection vulnerability",
-  "code": "#include <string>\n#include <sqlite3.h>\n\nvoid getUserData(const std::string& username) {\n    sqlite3* db;\n    std::string query = \"SELECT * FROM users WHERE name = '\" + username + \"'\"; // SQL injection!\n    sqlite3_exec(db, query.c_str(), nullptr, nullptr, nullptr);\n}",
-  "file_path": "sql_injection.cpp",
+  "description": "Missing null check before dereferencing",
+  "code": "struct Node {\n    int value;\n    Node* next;\n};\n\nint getNextValue(Node* node) {\n    return node->next->value;  // What if node or next is null?\n}",
+  "file_path": "missing_null_check.cpp",
   "expected_issues": [
     {
-      "category": "security",
+      "category": "edge-case-handling",
       "severity": "critical",
-      "line": 6,
-      "description": "SQL injection vulnerability - unsanitized user input in query",
-      "reasoning": "User input 'username' is directly concatenated into SQL query without sanitization or parameterization. Attacker can inject malicious SQL (e.g., username = \"'; DROP TABLE users; --\"). Use prepared statements with parameter binding."
+      "line": 7,
+      "description": "Dereferencing potentially null pointers without check",
+      "reasoning": "node->next->value dereferences both node and node->next without null checks. If either is null, this causes a crash. Should check: if (node && node->next) before accessing."
     }
   ]
 }

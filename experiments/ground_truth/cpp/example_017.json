@@ -1,7 +1,7 @@
 {
   "id": "example_017",
-  "description": "Clean code with smart pointers - no issues",
-  "code": "#include <memory>\n\nstd::unique_ptr<int> ptr = std::make_unique<int>(42);\nstd::cout << *ptr << std::endl;\nreturn 0;\n// Memory automatically freed",
-  "file_path": "clean_smart_pointer.cpp",
+  "description": "Clean code - properly handles all edge cases",
+  "code": "std::optional<double> safeDivide(double a, double b) {\n    if (b == 0.0) {\n        return std::nullopt;\n    }\n    return a / b;\n}\n\nint safeGetFirst(const std::vector<int>& v) {\n    if (v.empty()) {\n        throw std::out_of_range(\"Cannot get first element of empty vector\");\n    }\n    return v.front();\n}",
+  "file_path": "clean_error_handling.cpp",
   "expected_issues": []
 }

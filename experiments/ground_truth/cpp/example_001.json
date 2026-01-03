@@ -1,15 +1,15 @@
 {
   "id": "example_001",
-  "description": "Memory leak - raw pointer never deleted",
-  "code": "int* ptr = new int(10);\n*ptr = 42;\nstd::cout << *ptr << std::endl;\nreturn 0;\n// missing: delete ptr;",
-  "file_path": "memory_leak.cpp",
+  "description": "Off-by-one error in loop - uses <= instead of <",
+  "code": "std::vector<int> nums = {1, 2, 3, 4, 5};\nint sum = 0;\nfor (int i = 0; i <= nums.size(); i++) {\n    sum += nums[i];\n}\nreturn sum;",
+  "file_path": "off_by_one_loop.cpp",
   "expected_issues": [
     {
-      "category": "memory-safety",
+      "category": "logic-errors",
       "severity": "critical",
-      "line": 1,
-      "description": "Memory leak - dynamically allocated pointer never deleted",
-      "reasoning": "Pointer allocated with 'new' on line 1 but there is no corresponding 'delete' statement. This causes a memory leak on every execution."
+      "line": 3,
+      "description": "Off-by-one error: loop condition uses <= instead of <",
+      "reasoning": "Loop iterates with i <= nums.size(), which allows i to equal 5 (the size). This causes out-of-bounds access at nums[5] since valid indices are 0-4."
     }
   ]
 }

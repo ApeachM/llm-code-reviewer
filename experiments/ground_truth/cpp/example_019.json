@@ -1,7 +1,22 @@
 {
   "id": "example_019",
-  "description": "Clean code with std::array and range-based for - no issues",
-  "code": "#include <array>\n#include <algorithm>\n#include <iostream>\n\nstd::array<int, 5> data = {1, 2, 3, 4, 5};\nfor (const auto& val : data) {\n    std::cout << val << std::endl;\n}\nauto max_val = *std::max_element(data.begin(), data.end());\nreturn max_val;",
-  "file_path": "clean_array_usage.cpp",
-  "expected_issues": []
+  "description": "Implementation doesn't match documented requirements",
+  "code": "// PR Description: \"Implement discount calculation that gives 10% off for orders over $100\"\n\ndouble calculateDiscount(double orderTotal) {\n    if (orderTotal > 50) {  // Wrong threshold!\n        return orderTotal * 0.05;  // Wrong percentage!\n    }\n    return 0.0;\n}",
+  "file_path": "intent_mismatch.cpp",
+  "expected_issues": [
+    {
+      "category": "code-intent-mismatch",
+      "severity": "high",
+      "line": 4,
+      "description": "Threshold doesn't match requirement (50 vs 100)",
+      "reasoning": "PR description specifies $100 threshold but implementation uses $50. This is a clear mismatch between stated requirements and implementation."
+    },
+    {
+      "category": "code-intent-mismatch",
+      "severity": "high",
+      "line": 5,
+      "description": "Discount percentage wrong (5% vs 10%)",
+      "reasoning": "PR description specifies 10% discount but implementation applies 5% (0.05). Discount calculation doesn't match requirements."
+    }
+  ]
 }

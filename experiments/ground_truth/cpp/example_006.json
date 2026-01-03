@@ -1,15 +1,15 @@
 {
   "id": "example_006",
-  "description": "Raw pointer should use unique_ptr",
-  "code": "class Widget {\npublic:\n    Widget(int val) : value(val) {}\n    int value;\n};\n\nWidget* w = new Widget(42);\nstd::cout << w->value << std::endl;\ndelete w;",
-  "file_path": "raw_pointer_modernize.cpp",
+  "description": "Wrong parameter order in function call",
+  "code": "void copyBuffer(char* dest, const char* src, size_t size) {\n    memcpy(dest, src, size);\n}\n\nvoid process() {\n    char source[100] = \"hello\";\n    char destination[100];\n    copyBuffer(source, destination, 100); // Wrong order!\n}",
+  "file_path": "wrong_param_order.cpp",
   "expected_issues": [
     {
-      "category": "modern-cpp",
-      "severity": "medium",
-      "line": 7,
-      "description": "Use std::unique_ptr instead of raw pointer with manual delete",
-      "reasoning": "Raw pointer allocated with 'new' and manually deleted. Modern C++ should use std::unique_ptr for automatic memory management and exception safety."
+      "category": "api-misuse",
+      "severity": "critical",
+      "line": 8,
+      "description": "Source and destination parameters swapped",
+      "reasoning": "copyBuffer expects (dest, src, size) but caller passes (source, destination, size). This copies uninitialized data from destination to source, corrupting the source buffer."
     }
   ]
 }

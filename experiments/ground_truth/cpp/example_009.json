@@ -1,15 +1,15 @@
 {
   "id": "example_009",
-  "description": "Using emplace_back instead of push_back",
-  "code": "#include <vector>\n#include <string>\n\nstruct Person {\n    std::string name;\n    int age;\n    Person(std::string n, int a) : name(n), age(a) {}\n};\n\nstd::vector<Person> people;\npeople.push_back(Person(\"Alice\", 30)); // should use emplace_back",
-  "file_path": "emplace_modernize.cpp",
+  "description": "Getter function modifies internal state",
+  "code": "class Counter {\n    int count_ = 0;\n    bool accessed_ = false;\n\npublic:\n    int getCount() {\n        accessed_ = true;  // Side effect in getter!\n        return count_;\n    }\n\n    void increment() { count_++; }\n};",
+  "file_path": "getter_side_effect.cpp",
   "expected_issues": [
     {
-      "category": "modern-cpp",
-      "severity": "low",
-      "line": 11,
-      "description": "Use emplace_back instead of push_back for in-place construction",
-      "reasoning": "push_back creates a temporary Person object then moves it into the vector. emplace_back constructs the object directly in the vector, avoiding unnecessary copy/move operations."
+      "category": "semantic-inconsistency",
+      "severity": "medium",
+      "line": 7,
+      "description": "Getter function has unexpected side effect",
+      "reasoning": "Function named 'getCount' implies a read-only operation, but it modifies accessed_ member. Violates principle of least surprise; getters should not have side effects."
     }
   ]
 }

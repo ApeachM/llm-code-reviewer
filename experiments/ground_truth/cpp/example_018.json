@@ -1,7 +1,7 @@
 {
   "id": "example_018",
-  "description": "Clean code with RAII and modern C++ - no issues",
-  "code": "#include <vector>\n#include <memory>\n#include <mutex>\n\nclass SafeCounter {\nprivate:\n    mutable std::mutex mtx;\n    int value = 0;\npublic:\n    void increment() {\n        std::lock_guard<std::mutex> lock(mtx);\n        ++value;\n    }\n    int get() const {\n        std::lock_guard<std::mutex> lock(mtx);\n        return value;\n    }\n};\n\nauto counter = std::make_unique<SafeCounter>();\ncounter->increment();\nreturn counter->get();",
-  "file_path": "clean_modern_cpp.cpp",
+  "description": "Clean code - consistent naming and behavior",
+  "code": "class UserRepository {\npublic:\n    void addUser(const User& user) {\n        users_.push_back(user);\n    }\n\n    void removeUser(const std::string& id) {\n        users_.erase(\n            std::remove_if(users_.begin(), users_.end(),\n                [&id](const User& u) { return u.id == id; }),\n            users_.end());\n    }\n\n    std::optional<User> findUserById(const std::string& id) const {\n        auto it = std::find_if(users_.begin(), users_.end(),\n            [&id](const User& u) { return u.id == id; });\n        if (it != users_.end()) return *it;\n        return std::nullopt;\n    }\n\nprivate:\n    std::vector<User> users_;\n};",
+  "file_path": "clean_consistent_naming.cpp",
   "expected_issues": []
 }

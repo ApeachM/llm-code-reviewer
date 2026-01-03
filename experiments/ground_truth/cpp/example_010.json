@@ -1,15 +1,15 @@
 {
   "id": "example_010",
-  "description": "Inefficient string concatenation in loop",
-  "code": "#include <string>\n#include <vector>\n\nstd::string result;\nstd::vector<std::string> items = {\"a\", \"b\", \"c\", \"d\", \"e\"};\nfor (const auto& item : items) {\n    result = result + item; // inefficient\n}",
-  "file_path": "string_concat_performance.cpp",
+  "description": "Function name contradicts behavior",
+  "code": "class UserManager {\npublic:\n    void addUser(const std::string& name) {\n        users_.erase(std::remove(users_.begin(), users_.end(), name), users_.end());\n    }\n\nprivate:\n    std::vector<std::string> users_;\n};",
+  "file_path": "name_behavior_mismatch.cpp",
   "expected_issues": [
     {
-      "category": "performance",
-      "severity": "medium",
-      "line": 7,
-      "description": "Inefficient string concatenation in loop - use reserve() or stringstream",
-      "reasoning": "String concatenation with operator+ creates a new string on each iteration, causing O(n²) performance. Use result += item, or better yet, reserve space upfront or use std::stringstream."
+      "category": "semantic-inconsistency",
+      "severity": "critical",
+      "line": 3,
+      "description": "Function named 'addUser' actually removes users",
+      "reasoning": "Function is named 'addUser' but uses erase-remove idiom which deletes matching users. Either the name is wrong (should be removeUser) or the implementation is wrong."
     }
   ]
 }

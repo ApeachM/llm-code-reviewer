@@ -1,15 +1,15 @@
 {
   "id": "example_016",
-  "description": "Deadlock - lock ordering issue",
-  "code": "#include <mutex>\n#include <thread>\n\nstd::mutex mutex1, mutex2;\n\nvoid thread1Func() {\n    std::lock_guard<std::mutex> lock1(mutex1);\n    std::lock_guard<std::mutex> lock2(mutex2); // potential deadlock\n    // ... work\n}\n\nvoid thread2Func() {\n    std::lock_guard<std::mutex> lock2(mutex2);\n    std::lock_guard<std::mutex> lock1(mutex1); // opposite order - deadlock!\n    // ... work\n}",
-  "file_path": "deadlock.cpp",
+  "description": "Unhandled error case in switch statement",
+  "code": "enum class Status { OK, ERROR, PENDING, CANCELLED };\n\nstd::string statusToString(Status s) {\n    switch (s) {\n        case Status::OK: return \"OK\";\n        case Status::ERROR: return \"Error\";\n        case Status::PENDING: return \"Pending\";\n        // Missing: case Status::CANCELLED\n    }\n    return \"\";  // Silent failure for CANCELLED\n}",
+  "file_path": "unhandled_enum_case.cpp",
   "expected_issues": [
     {
-      "category": "concurrency",
-      "severity": "critical",
-      "line": 7,
-      "description": "Potential deadlock - inconsistent lock ordering between threads",
-      "reasoning": "thread1Func locks mutex1 then mutex2, while thread2Func locks mutex2 then mutex1 (line 13-14). This inconsistent lock ordering can cause deadlock. Always acquire locks in the same order, or use std::scoped_lock to lock multiple mutexes atomically."
+      "category": "edge-case-handling",
+      "severity": "high",
+      "line": 4,
+      "description": "Missing case for Status::CANCELLED in switch",
+      "reasoning": "Switch statement handles OK, ERROR, PENDING but not CANCELLED. If CANCELLED is passed, function silently returns empty string. Should handle all enum cases or add default with assertion."
     }
   ]
 }

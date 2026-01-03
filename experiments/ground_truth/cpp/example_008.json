@@ -1,22 +1,15 @@
 {
   "id": "example_008",
-  "description": "Using NULL instead of nullptr",
-  "code": "int* ptr = NULL; // should use nullptr\nif (ptr == NULL) {\n    std::cout << \"Pointer is null\" << std::endl;\n}",
-  "file_path": "null_modernize.cpp",
+  "description": "Socket not closed on error path",
+  "code": "int connectAndSend(const char* host, int port, const char* data) {\n    int sock = socket(AF_INET, SOCK_STREAM, 0);\n    if (sock < 0) return -1;\n\n    struct sockaddr_in addr;\n    addr.sin_family = AF_INET;\n    addr.sin_port = htons(port);\n\n    if (connect(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {\n        return -1;  // Socket leaked!\n    }\n\n    send(sock, data, strlen(data), 0);\n    close(sock);\n    return 0;\n}",
+  "file_path": "socket_leak.cpp",
   "expected_issues": [
     {
-      "category": "modern-cpp",
-      "severity": "low",
-      "line": 1,
-      "description": "Use nullptr instead of NULL macro",
-      "reasoning": "NULL is a C-style macro that can cause type ambiguity. C++11 introduced nullptr as a type-safe null pointer constant."
-    },
-    {
-      "category": "modern-cpp",
-      "severity": "low",
-      "line": 2,
-      "description": "Use nullptr instead of NULL macro",
-      "reasoning": "NULL comparison should use nullptr for type safety and consistency with modern C++ practices."
+      "category": "api-misuse",
+      "severity": "high",
+      "line": 10,
+      "description": "Socket descriptor leaked on connection failure",
+      "reasoning": "socket() succeeds on line 2, but if connect() fails on line 9, the function returns without calling close(sock). Each failed connection leaks a file descriptor."
     }
   ]
 }

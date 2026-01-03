@@ -1,15 +1,15 @@
 {
   "id": "example_007",
-  "description": "Using C-style array instead of std::array",
-  "code": "int data[100];\nfor (int i = 0; i < 100; i++) {\n    data[i] = i * 2;\n}\nreturn data[50];",
-  "file_path": "c_array_modernize.cpp",
+  "description": "Ignoring return value of critical function",
+  "code": "void processData(const std::string& filename) {\n    std::ifstream file(filename);\n    file.read(buffer, sizeof(buffer));\n    // Ignoring return value - don't know if read succeeded\n    processBuffer(buffer);\n}",
+  "file_path": "ignored_return_value.cpp",
   "expected_issues": [
     {
-      "category": "modern-cpp",
-      "severity": "low",
-      "line": 1,
-      "description": "Use std::array instead of C-style array",
-      "reasoning": "C-style array 'data[100]' should be replaced with std::array<int, 100> for type safety, bounds checking in debug mode, and compatibility with STL algorithms."
+      "category": "api-misuse",
+      "severity": "high",
+      "line": 3,
+      "description": "Return value of read() ignored",
+      "reasoning": "file.read() returns the stream reference indicating success/failure, but it's not checked. If read fails, processBuffer receives uninitialized or partial data."
     }
   ]
 }

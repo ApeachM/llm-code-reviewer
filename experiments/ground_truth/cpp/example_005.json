@@ -1,15 +1,15 @@
 {
   "id": "example_005",
-  "description": "Null pointer dereference",
-  "code": "int* ptr = nullptr;\n*ptr = 100; // null pointer dereference\nstd::cout << *ptr << std::endl;",
-  "file_path": "null_deref.cpp",
+  "description": "File handle not closed in error path",
+  "code": "bool processFile(const std::string& path) {\n    FILE* f = fopen(path.c_str(), \"r\");\n    if (!f) return false;\n\n    char buffer[1024];\n    if (fread(buffer, 1, 1024, f) == 0) {\n        return false;  // Error: file not closed!\n    }\n\n    fclose(f);\n    return true;\n}",
+  "file_path": "resource_leak_error_path.cpp",
   "expected_issues": [
     {
-      "category": "memory-safety",
-      "severity": "critical",
-      "line": 2,
-      "description": "Null pointer dereference",
-      "reasoning": "Pointer 'ptr' is initialized to nullptr on line 1, then immediately dereferenced on line 2. Dereferencing null pointer causes segmentation fault."
+      "category": "api-misuse",
+      "severity": "high",
+      "line": 7,
+      "description": "File handle leaked in error path",
+      "reasoning": "fopen() on line 2 succeeds, but early return on line 7 skips fclose() on line 10. File descriptor is leaked when fread fails. Should call fclose(f) before returning false."
     }
   ]
 }

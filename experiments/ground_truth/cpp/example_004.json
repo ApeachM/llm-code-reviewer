@@ -1,15 +1,15 @@
 {
   "id": "example_004",
-  "description": "Array out of bounds access",
-  "code": "int arr[5] = {1, 2, 3, 4, 5};\nfor (int i = 0; i <= 5; i++) {\n    std::cout << arr[i] << std::endl;\n}",
-  "file_path": "array_bounds.cpp",
+  "description": "Integer division truncation in percentage calculation",
+  "code": "int calculatePercentage(int part, int total) {\n    return part / total * 100;\n}",
+  "file_path": "integer_division.cpp",
   "expected_issues": [
     {
-      "category": "memory-safety",
-      "severity": "critical",
+      "category": "logic-errors",
+      "severity": "high",
       "line": 2,
-      "description": "Array out of bounds access",
-      "reasoning": "Loop condition uses 'i <= 5' which will access arr[5], but array has indices 0-4. This accesses memory beyond the array bounds, causing undefined behavior."
+      "description": "Integer division truncation causes incorrect percentage",
+      "reasoning": "Integer division part/total truncates to 0 for any part < total before multiplying by 100. For part=1, total=3: (1/3)*100 = 0*100 = 0 instead of 33. Should be (part * 100) / total or use floating point."
     }
   ]
 }

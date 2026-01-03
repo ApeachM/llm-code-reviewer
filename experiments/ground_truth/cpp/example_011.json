@@ -1,15 +1,15 @@
 {
   "id": "example_011",
-  "description": "Pass large object by value instead of const reference",
-  "code": "#include <vector>\n#include <string>\n\nstruct LargeObject {\n    std::vector<int> data;\n    std::string metadata;\n};\n\nvoid processObject(LargeObject obj) { // should be const LargeObject&\n    // ... processing\n}",
-  "file_path": "pass_by_value_performance.cpp",
+  "description": "Comment contradicts code behavior",
+  "code": "class DataProcessor {\npublic:\n    // Returns the sum of all positive numbers\n    int calculate(const std::vector<int>& nums) {\n        int result = 0;\n        for (int n : nums) {\n            if (n < 0) result += n;  // Adds negative numbers!\n        }\n        return result;\n    }\n};",
+  "file_path": "comment_code_mismatch.cpp",
   "expected_issues": [
     {
-      "category": "performance",
-      "severity": "medium",
-      "line": 9,
-      "description": "Pass large object by const reference instead of by value",
-      "reasoning": "Function parameter 'obj' is passed by value, causing unnecessary copy of potentially large vectors and strings. Use const LargeObject& to avoid expensive copy operations."
+      "category": "semantic-inconsistency",
+      "severity": "high",
+      "line": 7,
+      "description": "Code behavior contradicts comment documentation",
+      "reasoning": "Comment on line 3 says 'sum of all positive numbers' but condition on line 7 checks 'n < 0' and adds negative numbers. Either the comment or the condition is wrong."
     }
   ]
 }

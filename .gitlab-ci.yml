@@ -1,0 +1,122 @@
+# Semantic PR Review Bot - GitLab CI Configuration
+# Analyzes merge requests for semantic issues that static analysis cannot detect
+
+stages:
+  - review
+
+variables:
+  # Default model (can be overridden per-project)
+  OLLAMA_MODEL: "qwen2.5:14b"
+  # Ollama server URL (must be accessible from CI runner)
+  OLLAMA_HOST: "http://localhost:11434"
+  # Minimum severity to report (critical, high, medium, low)
+  MIN_SEVERITY: "medium"
+  # Maximum issues to report per MR
+  MAX_ISSUES: "20"
+
+# Semantic code review job
+semantic-review:
+  stage: review
+  # Only run on merge requests
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+  # Use Python image with dependencies
+  image: python:3.11-slim
+
+  before_script:
+    # Install dependencies
+    - pip install -q pydantic requests click tree-sitter tree-sitter-cpp
+    # Install the package
+    - pip install -e .
+
+  script:
+    # Get changed files in MR
+    - |
+      echo "Analyzing MR: $CI_MERGE_REQUEST_IID"
+      echo "Source branch: $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME"
+      echo "Target branch: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+
+    # Fetch target branch for diff
+    - git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+
+    # Get list of changed C++ files
+    - |
+      CHANGED_FILES=$(git diff --name-only origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...HEAD | grep -E '\.(cpp|cc|cxx|h|hpp|hxx)$' || true)
+      if [ -z "$CHANGED_FILES" ]; then
+        echo "No C++ files changed in this MR"
+        exit 0
+      fi
+      echo "Changed C++ files:"
+      echo "$CHANGED_FILES"
+
+    # Run semantic review on changed files
+    - |
+      python -m cli.main analyze pr \
+        --base origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME \
+        --head HEAD \
+        --output review_results.json \
+        --format json \
+        --model $OLLAMA_MODEL \
+        --min-severity $MIN_SEVERITY \
+        --max-issues $MAX_ISSUES
+
+    # Post results as MR comment (if issues found)
+    - |
+      if [ -f review_results.json ]; then
+        python -m integrations.gitlab_post_comment \
+          --project-id $CI_PROJECT_ID \
+          --mr-iid $CI_MERGE_REQUEST_IID \
+          --results review_results.json \
+          --gitlab-url $CI_SERVER_URL \
+          --token $GITLAB_API_TOKEN
+      fi
+
+  # Allow failure so it doesn't block MR
+  allow_failure: true
+
+  # Artifacts for debugging
+  artifacts:
+    when: always
+    paths:
+      - review_results.json
+    expire_in: 1 week
+
+  # Resource requirements
+  tags:
+    - ollama  # Runner must have Ollama available
+
+# Optional: Full analysis job (manual trigger)
+full-analysis:
+  stage: review
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+
+  image: python:3.11-slim
+
+  before_script:
+    - pip install -q pydantic requests click tree-sitter tree-sitter-cpp
+    - pip install -e .
+
+  script:
+    - git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+    - |
+      CHANGED_FILES=$(git diff --name-only origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...HEAD | grep -E '\.(cpp|cc|cxx|h|hpp|hxx)$' || true)
+      for file in $CHANGED_FILES; do
+        if [ -f "$file" ]; then
+          echo "Analyzing: $file"
+          python -m cli.main analyze file "$file" --chunk --output "review_${file//\//_}.md"
+        fi
+      done
+
+  allow_failure: true
+
+  artifacts:
+    when: always
+    paths:
+      - review_*.md
+    expire_in: 1 week
+
+  tags:
+    - ollama

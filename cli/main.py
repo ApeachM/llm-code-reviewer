@@ -408,12 +408,22 @@ def dir(directory: str, model: str, output: Optional[str], recursive: bool, chun
               help='Head branch/commit')
 @click.option('--model', '-m', default='deepseek-coder:33b-instruct',
               help='Ollama model to use')
-@click.option('--output', '-o', type=click.Path(), help='Output file (markdown)')
+@click.option('--output', '-o', type=click.Path(), help='Output file')
+@click.option('--format', 'output_format', type=click.Choice(['markdown', 'json']),
+              default='markdown', help='Output format (default: markdown)')
 @click.option('--chunk/--no-chunk', default=False,
               help='Enable chunking for large files (default: disabled)')
 @click.option('--chunk-size', default=200, type=int,
               help='Maximum lines per chunk (default: 200)')
-def pr(repo: str, base: str, head: str, model: str, output: Optional[str], chunk: bool, chunk_size: int):
+@click.option('--min-severity', type=click.Choice(['critical', 'high', 'medium', 'low']),
+              default='low', help='Minimum severity to report (default: low)')
+@click.option('--max-issues', default=50, type=int,
+              help='Maximum issues to report (default: 50)')
+@click.option('--changed-lines-only', is_flag=True,
+              help='Only report issues on changed lines')
+def pr(repo: str, base: str, head: str, model: str, output: Optional[str],
+       output_format: str, chunk: bool, chunk_size: int, min_severity: str,
+       max_issues: int, changed_lines_only: bool):
     """
     Analyze changes in a pull request.
 
@@ -422,95 +432,175 @@ def pr(repo: str, base: str, head: str, model: str, output: Optional[str], chunk
     Example:
         llm-framework analyze pr --base main --head feature-branch
         llm-framework analyze pr --output pr-review.md
-        llm-framework analyze pr --chunk
+        llm-framework analyze pr --format json --output results.json
+        llm-framework analyze pr --min-severity high --max-issues 10
     """
     from plugins.production_analyzer import ProductionAnalyzer
     import subprocess
+    import json
 
     console.print(f"\n[bold cyan]Analyzing PR:[/bold cyan] {base}...{head}")
     console.print(f"[bold]Repository:[/bold] {repo}")
     console.print(f"[bold]Model:[/bold] {model}")
+    console.print(f"[bold]Min severity:[/bold] {min_severity}")
+    console.print(f"[bold]Max issues:[/bold] {max_issues}")
 
     if chunk:
         console.print(f"[bold]Chunk mode:[/bold] Enabled (max {chunk_size} lines per chunk)")
-    else:
-        console.print(f"[bold]Chunk mode:[/bold] Disabled")
+
+    if changed_lines_only:
+        console.print(f"[bold]Changed lines only:[/bold] Yes")
+
     console.print()
 
     # Create analyzer
     analyzer = ProductionAnalyzer(model_name=model)
 
+    # Get changed lines if needed
+    changed_lines_map = {}
+    if changed_lines_only:
+        changed_lines_map = _get_changed_lines(Path(repo), base, head)
+
     # Analyze git diff with chunking support
     repo_path = Path(repo)
     with console.status("[bold green]Analyzing changed files...") as status:
-        if chunk:
-            # Manual git diff processing with chunk support
-            try:
-                result = subprocess.run(
-                    ['git', 'diff', '--name-only', f'{base}...{head}'],
-                    cwd=repo_path,
-                    capture_output=True,
-                    text=True,
-                    check=True
-                )
-                changed_files = result.stdout.strip().split('\n')
-            except subprocess.CalledProcessError as e:
-                console.print(f"[bold red]Git diff failed:[/bold red] {e}")
-                return
+        # Get changed files
+        try:
+            result = subprocess.run(
+                ['git', 'diff', '--name-only', f'{base}...{head}'],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            changed_files = [f for f in result.stdout.strip().split('\n') if f]
+        except subprocess.CalledProcessError as e:
+            console.print(f"[bold red]Git diff failed:[/bold red] {e}")
+            return
 
-            results = {}
-            for file_name in changed_files:
-                if not file_name:
-                    continue
+        results = {}
+        for file_name in changed_files:
+            file_path = repo_path / file_name
+            if not file_path.exists():
+                continue
 
-                file_path = repo_path / file_name
-                if not file_path.exists():
-                    continue
-
-                result = analyzer.analyze_file(
-                    file_path,
-                    chunk_mode=True,
-                    max_chunk_lines=chunk_size
-                )
-                if result:
-                    results[file_path] = result
-        else:
-            results = analyzer.analyze_git_diff(repo_path, base, head)
+            result = analyzer.analyze_file(
+                file_path,
+                chunk_mode=chunk,
+                max_chunk_lines=chunk_size
+            )
+            if result:
+                results[file_path] = result
 
     if not results:
-        console.print("[green]✅ No issues found in changed files![/green]")
+        console.print("[green]No files analyzed[/green]")
+        if output and output_format == 'json':
+            Path(output).write_text(json.dumps({"issues": [], "total": 0}))
         return
 
-    # Display results
-    stats = analyzer.get_statistics(results)
+    # Filter and collect issues
+    severity_priority = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3}
+    min_sev_priority = severity_priority.get(min_severity, 3)
 
-    console.print(f"[yellow]Analyzed {stats['total_files']} changed file(s)[/yellow]")
-    console.print(f"[yellow]Found {stats['total_issues']} issue(s)[/yellow]\n")
-
-    # Show issues by file
+    all_issues = []
     for file_path, result in results.items():
-        if not result.issues:
-            continue
-
-        console.print(f"[bold]📄 {file_path.name}:[/bold]")
         for issue in result.issues:
-            severity_color = {
-                'critical': 'red',
-                'high': 'yellow',
-                'medium': 'blue',
-                'low': 'green'
-            }.get(issue.severity, 'white')
+            issue_sev = severity_priority.get(issue.severity, 3)
 
-            console.print(f"  [{severity_color}]● Line {issue.line}[/{severity_color}] {issue.description}")
+            # Filter by severity
+            if issue_sev > min_sev_priority:
+                continue
 
-        console.print()
+            # Filter by changed lines if enabled
+            if changed_lines_only:
+                file_changed_lines = changed_lines_map.get(str(file_path.relative_to(repo_path)), set())
+                if issue.line not in file_changed_lines:
+                    continue
+
+            all_issues.append({
+                'file_path': str(file_path.relative_to(repo_path)),
+                'line': issue.line,
+                'category': issue.category,
+                'severity': issue.severity,
+                'description': issue.description,
+                'reasoning': issue.reasoning
+            })
+
+    # Sort by severity (critical first) and limit
+    all_issues.sort(key=lambda x: (severity_priority.get(x['severity'], 3), x['line']))
+    all_issues = all_issues[:max_issues]
+
+    # Display results
+    console.print(f"[yellow]Analyzed {len(results)} changed file(s)[/yellow]")
+    console.print(f"[yellow]Reporting {len(all_issues)} issue(s)[/yellow]\n")
+
+    # Show issues
+    for issue in all_issues:
+        severity_color = {
+            'critical': 'red',
+            'high': 'yellow',
+            'medium': 'blue',
+            'low': 'green'
+        }.get(issue['severity'], 'white')
+
+        console.print(f"[{severity_color}]● {issue['file_path']}:{issue['line']}[/{severity_color}] "
+                     f"[{issue['category']}] {issue['description']}")
 
     # Save to file if requested
     if output:
-        markdown = analyzer.format_results_markdown(results)
-        Path(output).write_text(markdown)
-        console.print(f"[green]PR review saved to:[/green] {output}")
-        console.print("\n💡 Tip: Copy this markdown to your PR comment!")
+        if output_format == 'json':
+            output_data = {
+                'issues': all_issues,
+                'total': len(all_issues),
+                'files_analyzed': len(results),
+                'base': base,
+                'head': head
+            }
+            Path(output).write_text(json.dumps(output_data, indent=2))
+            console.print(f"\n[green]JSON results saved to:[/green] {output}")
+        else:
+            markdown = analyzer.format_results_markdown(results)
+            Path(output).write_text(markdown)
+            console.print(f"\n[green]PR review saved to:[/green] {output}")
+            console.print("\n💡 Tip: Copy this markdown to your PR comment!")
+
+
+def _get_changed_lines(repo_path: Path, base: str, head: str) -> dict:
+    """Get changed line numbers for each file in the diff."""
+    import subprocess
+    import re
+
+    changed_lines = {}
+
+    try:
+        # Get unified diff
+        result = subprocess.run(
+            ['git', 'diff', '-U0', f'{base}...{head}'],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+    except subprocess.CalledProcessError:
+        return changed_lines
+
+    current_file = None
+
+    for line in result.stdout.split('\n'):
+        # Match file header
+        if line.startswith('+++ b/'):
+            current_file = line[6:]
+            changed_lines[current_file] = set()
+        # Match hunk header: @@ -old_start,old_count +new_start,new_count @@
+        elif line.startswith('@@') and current_file:
+            match = re.search(r'\+(\d+)(?:,(\d+))?', line)
+            if match:
+                start = int(match.group(1))
+                count = int(match.group(2)) if match.group(2) else 1
+                for i in range(start, start + count):
+                    changed_lines[current_file].add(i)
+
+    return changed_lines
 
 
 if __name__ == '__main__':

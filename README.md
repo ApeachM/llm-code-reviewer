@@ -412,7 +412,10 @@ See `plugins/cpp_plugin.py` for reference implementation.
 
 ## Documentation
 
-- **[PROJECT_PLAN.md](PROJECT_PLAN.md)** - Comprehensive project transformation plan
+- **[PROJECT_PLAN.md](docs/PROJECT_PLAN.md)** - Comprehensive project transformation plan
+- **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Production deployment guide
+- **[EXPERIMENT_RESULTS.md](experiments/EXPERIMENT_RESULTS.md)** - Experiment results and leaderboard
+- **[VALIDATION_REPORT.md](validation/VALIDATION_REPORT.md)** - Real-world validation results
 - **[MIGRATION.md](MIGRATION.md)** - Migration from research platform to PR bot
 - **[CLAUDE.md](CLAUDE.md)** - Instructions for Claude Code assistant
 - **[docs/](docs/)** - Additional architecture and usage documentation

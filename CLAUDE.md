@@ -307,7 +307,7 @@ This project is being transformed from a research platform to a production PR re
 - **Phase 3**: CI/CD integration (GitLab CI, Jenkins, GitHub Actions)
 - **Phase 4**: Production hardening (error handling, monitoring, deployment)
 
-See `PROJECT_PLAN.md` for detailed transformation roadmap.
+See `docs/PROJECT_PLAN.md` for detailed transformation roadmap.
 See `MIGRATION.md` for migration from research platform.
 See `archive/research-platform` git tag for original state.
 
@@ -338,7 +338,10 @@ See `archive/research-platform` git tag for original state.
 ## Related Documentation
 
 - `README.md` - User-facing project overview and quick start
-- `PROJECT_PLAN.md` - Comprehensive transformation plan with phases
+- `docs/PROJECT_PLAN.md` - Comprehensive transformation plan with phases
+- `docs/DEPLOYMENT.md` - Production deployment guide
+- `experiments/EXPERIMENT_RESULTS.md` - Experiment results and leaderboard
+- `validation/VALIDATION_REPORT.md` - Real-world validation results
 - `MIGRATION.md` - Migration guide from research platform
 - `docs/architecture/overview.md` - Technical architecture deep dive
 - `docs/guides/` - Usage guides and tutorials

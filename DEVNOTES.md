@@ -165,7 +165,7 @@ Test files saved to `validation/test_cases/`:
 - `verilator_style_bugs.cpp` - Simple patterns (100% detection)
 - `pr_simulation.cpp` - Complex PR simulation
 
-See `VALIDATION_REPORT.md` for full details.
+See `validation/VALIDATION_REPORT.md` for full details.
 
 ---
 

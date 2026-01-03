@@ -43,7 +43,7 @@ technique_params:
             if (!f) return false;
             char buffer[1024];
             if (fread(buffer, 1, 1024, f) == 0) {
-                return false;  // Error: file not closed!
+                return false;
             }
             fclose(f);
             return true;
@@ -63,7 +63,7 @@ technique_params:
             bool discountApplied_ = false;
         public:
             double getDiscountedPrice() {
-                discountApplied_ = true;  // Side effect!
+                discountApplied_ = true;
                 return price_ * 0.9;
             }
         };
@@ -100,7 +100,7 @@ technique_params:
         void process() {
             char source[100] = "hello";
             char destination[100];
-            copyBuffer(source, destination, 100);  // Wrong order!
+            copyBuffer(source, destination, 100);
         }
       issues:
         - category: api-misuse

@@ -5,43 +5,50 @@
 This document summarizes the experiment results for the Semantic PR Review Bot. All experiments were run on the ground truth dataset of 20 annotated C++ examples.
 
 **Model**: deepseek-coder:33b-instruct
-**Dataset**: experiments/ground_truth/cpp (20 examples, 21 expected issues)
+**Dataset**: docs/research/experiments/ground_truth/cpp (20 examples, 21 expected issues)
 **Date**: 2026-01-03
-**Version**: v1.0.5
+**Version**: v1.1.1
 
 ---
 
-## Leaderboard
+## Important Note (v1.1.1)
+
+**힌트 제거**: 이전 버전에서는 테스트 코드에 버그를 알려주는 주석이 포함되어 있었음:
+```cpp
+// Before: return false;  // Error: file not closed!
+// After:  return false;
+```
+v1.1.1에서 모든 힌트 주석을 제거하여 공정한 평가 수행.
+
+---
+
+## Leaderboard (Honest Results)
 
 | Rank | Technique | F1 | Precision | Recall | Token Eff | Latency |
 |------|-----------|-----|-----------|--------|-----------|---------|
-| 1 | hybrid | 0.634 | 0.650 | 0.619 | 0.52 | 32.76s |
-| 2 | few_shot_5 (old) | 0.615 | 0.667 | 0.571 | 0.97 | 8.15s |
-| 3 | **few_shot_7 (v1.0.6)** | **0.605** | 0.591 | 0.619 | 0.54 | 10.35s |
-| 4 | few_shot_3 | 0.588 | 0.769 | 0.476 | 0.89 | 7.12s |
-| 5 | chain_of_thought | 0.571 | 0.571 | 0.571 | 0.92 | 23.94s |
-| 6 | few_shot_5 (v1.0.5) | 0.545 | 0.522 | 0.571 | 0.65 | 10.32s |
-| 7 | zero_shot (old) | 0.526 | 0.588 | 0.476 | 1.37 | 7.15s |
-| 8 | zero_shot (v1.0.5) | 0.441 | 0.342 | 0.619 | 0.96 | 23.65s |
+| 1 | few_shot_5 (v1.1.1) | **0.533** | 0.500 | 0.571 | 0.66 | 9.81s |
+
+> **Note**: 이전 결과(F1 0.545~0.634)는 힌트 주석이 포함된 상태에서 측정됨.
+> 힌트 제거 후 실제 성능은 F1 0.533 수준.
 
 ---
 
-## Latest Results (v1.0.5 with Category Normalization)
+## Latest Results (v1.1.1 - 힌트 제거 후)
 
 ### Few-shot-5
 
 | Metric | Value |
 |--------|-------|
-| **F1 Score** | **0.545** |
-| Precision | 0.522 |
+| **F1 Score** | **0.533** |
+| Precision | 0.500 |
 | Recall | 0.571 |
-| Token Efficiency | 0.65 issues/1K tokens |
-| Average Latency | 10.32s |
-| Total Tokens | 18,436 |
+| Token Efficiency | 0.66 issues/1K tokens |
+| Average Latency | 9.81s |
+| Total Tokens | 18,072 |
 
 **Confusion Matrix:**
 - True Positives: 12
-- False Positives: 11
+- False Positives: 12
 - False Negatives: 9
 
 ### Zero-shot

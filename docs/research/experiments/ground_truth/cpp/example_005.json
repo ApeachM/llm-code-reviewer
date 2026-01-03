@@ -1,7 +1,7 @@
 {
   "id": "example_005",
   "description": "File handle not closed in error path",
-  "code": "bool processFile(const std::string& path) {\n    FILE* f = fopen(path.c_str(), \"r\");\n    if (!f) return false;\n\n    char buffer[1024];\n    if (fread(buffer, 1, 1024, f) == 0) {\n        return false;  // Error: file not closed!\n    }\n\n    fclose(f);\n    return true;\n}",
+  "code": "bool processFile(const std::string& path) {\n    FILE* f = fopen(path.c_str(), \"r\");\n    if (!f) return false;\n\n    char buffer[1024];\n    if (fread(buffer, 1, 1024, f) == 0) {\n        return false;\n    }\n\n    fclose(f);\n    return true;\n}",
   "file_path": "resource_leak_error_path.cpp",
   "expected_issues": [
     {

@@ -1,7 +1,7 @@
 {
   "id": "example_002",
   "description": "Wrong comparison operator - > instead of ==",
-  "code": "int findMax(const std::vector<int>& arr) {\n    if (arr.size() > 0) {\n        return -1; // intended for empty array\n    }\n    int max = arr[0];\n    for (size_t i = 1; i < arr.size(); i++) {\n        if (arr[i] > max) max = arr[i];\n    }\n    return max;\n}",
+  "code": "int findMax(const std::vector<int>& arr) {\n    if (arr.size() > 0) {\n        return -1;\n    }\n    int max = arr[0];\n    for (size_t i = 1; i < arr.size(); i++) {\n        if (arr[i] > max) max = arr[i];\n    }\n    return max;\n}",
   "file_path": "wrong_comparison.cpp",
   "expected_issues": [
     {

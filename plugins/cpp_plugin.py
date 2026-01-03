@@ -92,7 +92,7 @@ return sum;''',
 
     char buffer[1024];
     if (fread(buffer, 1, 1024, f) == 0) {
-        return false;  // Error: file not closed!
+        return false;
     }
 
     fclose(f);
@@ -120,7 +120,7 @@ return sum;''',
 void process() {
     char source[100] = "hello";
     char destination[100];
-    copyBuffer(source, destination, 100); // Wrong order!
+    copyBuffer(source, destination, 100);
 }''',
             'issues': [
                 {
@@ -141,7 +141,6 @@ void process() {
     std::ifstream file(filename);
     char buffer[1024];
     file.read(buffer, sizeof(buffer));
-    // Return value ignored - don't know if read succeeded
     processBuffer(buffer);
 }''',
             'issues': [
@@ -165,7 +164,7 @@ void process() {
 
 public:
     double getDiscountedPrice() {
-        discountApplied_ = true;  // Side effect!
+        discountApplied_ = true;
         return price_ * 0.9;
     }
 };''',
@@ -189,7 +188,7 @@ public:
     for (const auto& v : values) {
         sum += v;
     }
-    return sum / values.size();  // Division by zero if empty!
+    return sum / values.size();
 }''',
             'issues': [
                 {
@@ -207,7 +206,7 @@ public:
             'id': 'semantic_007',
             'description': 'Wrong boolean operator in range check',
             'code': '''bool isValidRange(int value, int min, int max) {
-    return value >= min || value <= max;  // Wrong operator!
+    return value >= min || value <= max;
 }''',
             'issues': [
                 {
@@ -225,7 +224,7 @@ public:
             'id': 'semantic_008',
             'description': 'Integer division truncation in percentage',
             'code': '''int calculatePercentage(int part, int total) {
-    return part / total * 100;  // Truncates to 0!
+    return part / total * 100;
 }''',
             'issues': [
                 {

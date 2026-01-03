@@ -42,7 +42,7 @@ technique_params:
             if (!f) return false;
             char buffer[1024];
             if (fread(buffer, 1, 1024, f) == 0) {
-                return false;  // Error: file not closed!
+                return false;
             }
             fclose(f);
             return true;

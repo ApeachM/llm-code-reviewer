@@ -241,7 +241,7 @@ class TestExperimentConfigLoad:
 
     def test_load_zero_shot_config(self):
         """Test loading zero_shot.yml."""
-        config_path = Path("experiments/configs/zero_shot.yml")
+        config_path = Path("docs/research/experiments/configs/zero_shot.yml")
 
         with open(config_path) as f:
             config_data = yaml.safe_load(f)
@@ -303,7 +303,7 @@ class TestPhase1ExitGate:
         (to avoid external dependencies in tests).
         """
         # 1. Load config
-        config_path = Path("experiments/configs/zero_shot.yml")
+        config_path = Path("docs/research/experiments/configs/zero_shot.yml")
         with open(config_path) as f:
             config_data = yaml.safe_load(f)
 

@@ -203,8 +203,8 @@ class TestGroundTruthDataset:
     """Test ground truth dataset loading."""
 
     def test_load_dataset(self):
-        """Test loading ground truth dataset from experiments/ground_truth/cpp."""
-        dataset = GroundTruthDataset("experiments/ground_truth/cpp")
+        """Test loading ground truth dataset from docs/research/experiments/ground_truth/cpp."""
+        dataset = GroundTruthDataset("docs/research/experiments/ground_truth/cpp")
 
         # Should have 20 examples
         assert dataset.size == 20, f"Expected 20 examples, got {dataset.size}"
@@ -223,7 +223,7 @@ class TestGroundTruthDataset:
 
     def test_dataset_filtering(self):
         """Test dataset filtering by category and clean/issues."""
-        dataset = GroundTruthDataset("experiments/ground_truth/cpp")
+        dataset = GroundTruthDataset("docs/research/experiments/ground_truth/cpp")
 
         # Filter by category (using first available category in dataset)
         examples = dataset.get_examples_with_issues()
@@ -248,7 +248,7 @@ class TestGroundTruthDataset:
 
     def test_category_distribution(self):
         """Test category distribution calculation."""
-        dataset = GroundTruthDataset("experiments/ground_truth/cpp")
+        dataset = GroundTruthDataset("docs/research/experiments/ground_truth/cpp")
         distribution = dataset.category_distribution
 
         # Should have semantic categories (Phase 1 update: new categories)
@@ -430,7 +430,7 @@ class TestExperimentConfig:
 
     def test_load_zero_shot_config(self):
         """Test loading zero_shot.yml config."""
-        config_path = Path("experiments/configs/zero_shot.yml")
+        config_path = Path("docs/research/experiments/configs/zero_shot.yml")
         assert config_path.exists(), f"Config file not found: {config_path}"
 
         with open(config_path) as f:
@@ -440,12 +440,12 @@ class TestExperimentConfig:
         assert data['experiment_id'] == 'zero_shot_baseline'
         assert data['technique_name'] == 'zero_shot'
         assert data['model_name'] == 'deepseek-coder:33b-instruct'
-        assert data['dataset_path'] == 'experiments/ground_truth/cpp'
+        assert data['dataset_path'] == 'docs/research/experiments/ground_truth/cpp'
         assert 'technique_params' in data
 
     def test_load_all_configs(self):
         """Test that all experiment configs are valid YAML."""
-        config_dir = Path("experiments/configs")
+        config_dir = Path("docs/research/experiments/configs")
         config_files = list(config_dir.glob("*.yml"))
 
         assert len(config_files) >= 7, f"Expected at least 7 configs, found {len(config_files)}"
@@ -471,7 +471,7 @@ class TestPhase0ExitGate:
         """Verify all Phase 0 components can work together."""
 
         # 1. Load dataset
-        dataset = GroundTruthDataset("experiments/ground_truth/cpp")
+        dataset = GroundTruthDataset("docs/research/experiments/ground_truth/cpp")
         assert dataset.size == 20
 
         # 2. Get first example

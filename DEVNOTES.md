@@ -104,3 +104,65 @@ python -m cli.main experiment leaderboard
   - Phase 2: Ground truth dataset (20 examples)
   - Phase 3: GitLab CI/CD integration
   - Phase 4: DEPLOYMENT.md documentation
+
+---
+
+## 2026-01-03: Real-World Validation with Verilator
+
+### Overview
+Validated the analyzer against Verilator (https://github.com/verilator/verilator), a production C++ Verilog simulator with ~115K lines of code.
+
+### Verilator Analysis Results
+
+| File | Lines | Issues Found |
+|------|-------|--------------|
+| V3Branch.cpp | 80 | 0 |
+| V3Scoreboard.cpp | 96 | 0 |
+| V3Error.cpp | 404 | 0 |
+| V3GraphAlg.cpp | 489 | 0 |
+| V3String.cpp | 260 | 0 |
+
+**Conclusion**: Verilator is exceptionally clean - no semantic issues detected.
+
+### Synthetic Validation Tests
+
+#### Test 1: Simple Bug Patterns (`verilator_style_bugs.cpp`)
+
+| Bug Type | Detected? |
+|----------|-----------|
+| Off-by-one error | ✅ |
+| Resource leak | ✅ |
+| Missing empty check | ✅ |
+| Boolean logic error | ✅ |
+| Getter side effect | ✅ |
+
+**Result: 5/5 True Positives (100%)**
+
+#### Test 2: PR Simulation (`pr_simulation.cpp`)
+
+| Metric | Value |
+|--------|-------|
+| True Positives | 3 |
+| False Positives | 3 |
+| False Negatives | 4 |
+| Precision | 50% |
+| Recall | 43% |
+
+### Key Insights
+
+**Strengths:**
+- Excellent at detecting isolated bug patterns
+- Off-by-one and boolean logic errors
+- Resource leak detection
+
+**Weaknesses:**
+- May miss complex division-by-zero scenarios
+- Can incorrectly flag const functions as having side effects
+- Lower accuracy on interacting components
+
+### Test Files
+Test files saved to `validation/test_cases/`:
+- `verilator_style_bugs.cpp` - Simple patterns (100% detection)
+- `pr_simulation.cpp` - Complex PR simulation
+
+See `VALIDATION_REPORT.md` for full details.

@@ -305,24 +305,24 @@ int calculateTotal(int value) {
 
 ```
 semantic-pr-reviewer/
-├── framework/              # Core LLM analysis framework
-│   ├── techniques/        # Prompting strategies (few-shot, CoT, hybrid)
-│   ├── models.py          # Pydantic data models
-│   ├── ollama_client.py   # Ollama API interface
-│   ├── chunker.py         # AST-based file chunking
-│   └── ...
+├── cli/                   # Command-line interface
+│   └── main.py           # Entry point
+├── framework/             # Core LLM analysis framework
+│   ├── techniques/       # Prompting strategies (few-shot, CoT, hybrid)
+│   ├── models.py         # Pydantic data models
+│   ├── ollama_client.py  # Ollama API interface
+│   └── chunker.py        # AST-based file chunking
 ├── plugins/               # Domain-specific plugins
 │   ├── cpp_plugin.py     # C++ semantic analyzer
 │   └── domain_plugin.py  # Plugin interface
-├── cli/                   # Command-line interface
-│   └── main.py           # Entry point
-├── experiments/           # Research artifacts (kept for reference)
-│   ├── ground_truth/     # Annotated examples
-│   └── configs/          # Experiment configurations
-├── integrations/          # CI/CD integrations (Phase 3)
-│   ├── gitlab_client.py  # GitLab API
-│   └── github_client.py  # GitHub API
-└── tests/                 # Test suite
+├── integrations/          # CI/CD integrations
+│   └── gitlab_client.py  # GitLab API
+├── tests/                 # Test suite
+└── docs/                  # Documentation
+    ├── DEPLOYMENT.md     # Production deployment guide
+    └── research/         # Research artifacts
+        ├── experiments/  # Configs and ground truth
+        └── phases/       # Phase documentation
 ```
 
 ---
@@ -403,8 +403,7 @@ black . && ruff check . && mypy framework/ plugins/ cli/
 
 1. Create `plugins/python_plugin.py` inheriting from `DomainPlugin`
 2. Implement required methods: `get_categories()`, `get_few_shot_examples()`, etc.
-3. Add ground truth dataset in `experiments/ground_truth/python/`
-4. Register in ProductionAnalyzer
+3. Register in ProductionAnalyzer
 
 See `plugins/cpp_plugin.py` for reference implementation.
 
@@ -412,18 +411,16 @@ See `plugins/cpp_plugin.py` for reference implementation.
 
 ## Documentation
 
-- **[PROJECT_PLAN.md](docs/PROJECT_PLAN.md)** - Comprehensive project transformation plan
-- **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Production deployment guide
-- **[EXPERIMENT_RESULTS.md](experiments/EXPERIMENT_RESULTS.md)** - Experiment results and leaderboard
-- **[VALIDATION_REPORT.md](validation/VALIDATION_REPORT.md)** - Real-world validation results
-- **[MIGRATION.md](MIGRATION.md)** - Migration from research platform to PR bot
-- **[CLAUDE.md](CLAUDE.md)** - Instructions for Claude Code assistant
-- **[docs/](docs/)** - Additional architecture and usage documentation
+- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Production deployment guide
+- **[docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md)** - Project transformation plan
+- **[docs/MIGRATION.md](docs/MIGRATION.md)** - Migration from research platform
+- **[docs/architecture/](docs/architecture/)** - Technical architecture
 
-### Phase Documentation (Historical)
+### Research & Experiments
 
-The project evolved through 5 research phases:
-- [Phase 0-5 docs](docs/research/phases/) - Research findings and metrics
+- **[docs/research/EXPERIMENT_RESULTS.md](docs/research/EXPERIMENT_RESULTS.md)** - Experiment results and leaderboard
+- **[docs/research/validation/](docs/research/validation/)** - Real-world validation results
+- **[docs/research/phases/](docs/research/phases/)** - Phase 0-5 research findings
 
 ---
 
@@ -461,7 +458,7 @@ ollama list
 
 This project was originally a **research platform** for evaluating LLM prompting techniques on code analysis tasks. It has been transformed into a **production PR review bot** focused on semantic issues.
 
-See [MIGRATION.md](MIGRATION.md) for transformation details and `archive/research-platform` tag for original state.
+See [docs/MIGRATION.md](docs/MIGRATION.md) for transformation details.
 
 ---
 

@@ -162,7 +162,7 @@ Category normalization automatically maps LLM category variations to allowed cat
 experiment_id: few_shot_5_examples
 technique_name: few_shot_5
 model_name: deepseek-coder:33b-instruct
-dataset_path: experiments/ground_truth/cpp
+dataset_path: docs/research/experiments/ground_truth/cpp
 technique_params:
   num_examples: 5
   temperature: 0.1
@@ -170,7 +170,7 @@ technique_params:
 
 ### Ground Truth Dataset
 
-- Location: `experiments/ground_truth/cpp/`
+- Location: `docs/research/experiments/ground_truth/cpp/`
 - Examples: 20 annotated C++ code snippets
 - Categories covered: All 5 semantic categories
 - Clean code examples: 3 (negative examples)
@@ -192,10 +192,10 @@ technique_params:
 
 ```bash
 # Run single experiment
-python -m cli.main experiment run --config experiments/configs/few_shot_5.yml
+python -m cli.main experiment run --config docs/research/experiments/configs/few_shot_5.yml
 
 # Run all experiments
-for config in experiments/configs/*.yml; do
+for config in docs/research/experiments/configs/*.yml; do
   python -m cli.main experiment run --config "$config"
 done
 
@@ -207,7 +207,7 @@ python -m cli.main experiment leaderboard
 
 ## Files
 
-- **Configs**: `experiments/configs/`
-- **Ground Truth**: `experiments/ground_truth/cpp/`
+- **Configs**: `docs/research/experiments/configs/`
+- **Ground Truth**: `docs/research/experiments/ground_truth/cpp/`
 - **Results**: `experiments/runs/` (gitignored)
-- **This Report**: `experiments/EXPERIMENT_RESULTS.md`
+- **This Report**: `docs/research/EXPERIMENT_RESULTS.md`

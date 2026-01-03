@@ -67,7 +67,7 @@ llm-framework analyze file src/main.cpp
 ### Running Experiments
 ```bash
 # Run single experiment
-python -m cli.main experiment run --config experiments/configs/few_shot_5.yml
+python -m cli.main experiment run --config docs/research/experiments/configs/few_shot_5.yml
 
 # View leaderboard
 python -m cli.main experiment leaderboard
@@ -230,8 +230,8 @@ Categories are validated in `framework/models.py` (lines 34-40). When adding/cha
 
 1. Create `plugins/new_plugin.py` inheriting from `DomainPlugin`
 2. Implement: `get_file_extensions()`, `get_categories()`, `get_few_shot_examples()`, `should_analyze_file()`
-3. Add ground truth dataset in `experiments/ground_truth/new_domain/`
-4. Create experiment config in `experiments/configs/`
+3. Add ground truth dataset in `docs/research/experiments/ground_truth/new_domain/`
+4. Create experiment config in `docs/research/experiments/configs/`
 
 ## Adding a New Technique
 
@@ -249,13 +249,13 @@ Categories are validated in `framework/models.py` (lines 34-40). When adding/cha
        'new_technique': NewTechnique,
    }
    ```
-4. Create experiment config in `experiments/configs/new_technique.yml`
-5. Run experiment: `python -m cli.main experiment run --config experiments/configs/new_technique.yml`
+4. Create experiment config in `docs/research/experiments/configs/new_technique.yml`
+5. Run experiment: `python -m cli.main experiment run --config docs/research/experiments/configs/new_technique.yml`
 6. Compare results: `python -m cli.main experiment leaderboard`
 
 ## Ground Truth & Evaluation
 
-- **Ground truth examples**: `experiments/ground_truth/cpp/` (20 annotated C++ examples)
+- **Ground truth examples**: `docs/research/experiments/ground_truth/cpp/` (20 annotated C++ examples)
 - **Metrics tracked**:
   - Precision: TP / (TP + FP) - ratio of correct detections
   - Recall: TP / (TP + FN) - ratio of issues found
@@ -280,8 +280,8 @@ Categories are validated in `framework/models.py` (lines 34-40). When adding/cha
 - **Framework code**: Domain-agnostic logic goes in `framework/`
 - **Domain-specific code**: Language-specific logic goes in `plugins/`
 - **CLI commands**: User-facing commands in `cli/main.py` (uses Click)
-- **Experiments**: Research configs in `experiments/configs/`, results in `experiments/runs/` (gitignored)
-- **CI/CD integrations**: API clients and webhooks in `integrations/` (Phase 3+)
+- **Research & experiments**: All in `docs/research/` (configs, ground truth, results)
+- **CI/CD integrations**: API clients and webhooks in `integrations/`
 
 ### Important Conventions
 - **Technique registration**: All new techniques MUST be registered in `framework/techniques/__init__.py` TechniqueFactory
@@ -308,8 +308,7 @@ This project is being transformed from a research platform to a production PR re
 - **Phase 4**: Production hardening (error handling, monitoring, deployment)
 
 See `docs/PROJECT_PLAN.md` for detailed transformation roadmap.
-See `MIGRATION.md` for migration from research platform.
-See `archive/research-platform` git tag for original state.
+See `docs/MIGRATION.md` for migration from research platform.
 
 ## CI/CD Deployment
 
@@ -338,10 +337,8 @@ See `archive/research-platform` git tag for original state.
 ## Related Documentation
 
 - `README.md` - User-facing project overview and quick start
-- `docs/PROJECT_PLAN.md` - Comprehensive transformation plan with phases
 - `docs/DEPLOYMENT.md` - Production deployment guide
-- `experiments/EXPERIMENT_RESULTS.md` - Experiment results and leaderboard
-- `validation/VALIDATION_REPORT.md` - Real-world validation results
-- `MIGRATION.md` - Migration guide from research platform
+- `docs/MIGRATION.md` - Migration guide from research platform
 - `docs/architecture/overview.md` - Technical architecture deep dive
-- `docs/guides/` - Usage guides and tutorials
+- `docs/research/EXPERIMENT_RESULTS.md` - Experiment results and leaderboard
+- `docs/research/validation/VALIDATION_REPORT.md` - Real-world validation results

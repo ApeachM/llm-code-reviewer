@@ -4,7 +4,7 @@
 experiment_id: model_qwen_14b
 technique_name: few_shot_5
 model_name: qwen2.5:14b  # Different model, same technique
-dataset_path: experiments/ground_truth/cpp
+dataset_path: docs/research/experiments/ground_truth/cpp
 
 technique_params:
   system_prompt: |

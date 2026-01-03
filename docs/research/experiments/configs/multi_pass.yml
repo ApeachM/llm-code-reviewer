@@ -4,7 +4,7 @@
 experiment_id: multi_pass_self_critique
 technique_name: multi_pass
 model_name: deepseek-coder:33b-instruct
-dataset_path: experiments/ground_truth/cpp
+dataset_path: docs/research/experiments/ground_truth/cpp
 
 technique_params:
   # Pass 1: Initial detection

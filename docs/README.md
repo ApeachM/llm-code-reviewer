@@ -67,6 +67,10 @@
 
 ## 🔬 연구 자료
 
+### 실험 결과
+- **[research/EXPERIMENT_RESULTS.md](research/EXPERIMENT_RESULTS.md)** - 실험 결과 및 리더보드
+- **[research/DEVNOTES.md](research/DEVNOTES.md)** - 개발 노트
+
 ### Phase 문서 (개발 히스토리)
 - **[research/phases/](research/phases/)** - Phase 0-5 완료 보고서
   - [phase0-complete.md](research/phases/phase0-complete.md) - Zero-shot 기준선 (F1: 0.498)
@@ -74,13 +78,17 @@
   - [phase2-complete.md](research/phases/phase2-complete.md) - 기법 비교 실험
   - [phase3-complete.md](research/phases/phase3-complete.md) - 프로덕션 도구
   - [phase4-complete.md](research/phases/phase4-complete.md) - Hybrid 기법 (F1: 0.634)
-  - [phase4-hybrid.md](research/phases/phase4-hybrid.md) - Hybrid 심층 분석
   - [phase5-complete.md](research/phases/phase5-complete.md) - 대용량 파일 지원
 
-### 실험 가이드
-- **[research/experiments/](research/experiments/)** - 실험 실행 가이드
-  - [instruction-for-speckit.md](research/experiments/instruction-for-speckit.md) - Speckit 실험 가이드
-  - [large-pr-experiment.md](research/experiments/large-pr-experiment.md) - 대규모 PR 실험
+### 실험 인프라
+- **[research/experiments/](research/experiments/)** - 실험 설정 및 데이터셋
+  - `configs/` - 실험 설정 파일 (few_shot_5.yml, hybrid.yml 등)
+  - `ground_truth/` - Ground Truth 데이터셋 (20개 예제)
+  - `large-pr/` - 대규모 PR 실험 결과
+
+### 검증 결과
+- **[research/validation/](research/validation/)** - 실제 코드베이스 검증
+  - [VALIDATION_REPORT.md](research/validation/VALIDATION_REPORT.md) - Verilator 검증 보고서
 
 ---
 
@@ -190,5 +198,5 @@
 
 ---
 
-**최종 업데이트**: 2024-12-22
-**문서 버전**: 2.0 (리팩토링 완료)
+**최종 업데이트**: 2026-01-03
+**문서 버전**: 2.1 (저장소 구조 정리)

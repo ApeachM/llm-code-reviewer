@@ -1,4 +1,4 @@
-# Few-shot learning with 3 examples
+# Few-shot learning with 3 semantic examples
 # Research hypothesis: +30-40% accuracy improvement over zero-shot
 
 experiment_id: few_shot_3_examples
@@ -8,58 +8,64 @@ dataset_path: experiments/ground_truth/cpp
 
 technique_params:
   system_prompt: |
-    You are an expert C++ code reviewer. Analyze code for issues in these categories:
-    memory-safety, modern-cpp, performance, security, concurrency
+    You are an expert C++ code reviewer specializing in SEMANTIC issues.
 
-    Respond with JSON array of issues. Each issue: {category, severity, line, description, reasoning}
+    DO NOT report memory leaks, data races, or performance issues (static/dynamic tools handle these).
+    Focus ONLY on logic errors, API misuse, and semantic inconsistencies.
+
+    Categories: logic-errors, api-misuse, semantic-inconsistency, edge-case-handling, code-intent-mismatch
+    Respond with JSON array of issues: [{category, severity, line, description, reasoning}]
     If no issues, respond with [].
 
-  # Few-shot examples (high-quality annotated examples)
   few_shot_examples:
-    - id: example_001
-      description: "Memory leak example"
+    - id: semantic_001
+      description: "Off-by-one error in loop"
       code: |
-        int* ptr = new int(10);
-        *ptr = 42;
-        std::cout << *ptr << std::endl;
-        return 0;
-        // missing: delete ptr;
+        std::vector<int> nums = {1, 2, 3, 4, 5};
+        int sum = 0;
+        for (int i = 0; i <= nums.size(); i++) {
+            sum += nums[i];
+        }
+        return sum;
       issues:
-        - category: memory-safety
+        - category: logic-errors
           severity: critical
-          line: 1
-          description: "Memory leak - dynamically allocated pointer never deleted"
-          reasoning: "Pointer allocated with 'new' on line 1 but there is no corresponding 'delete' statement. This causes a memory leak on every execution."
+          line: 3
+          description: "Off-by-one error: loop uses <= instead of <"
+          reasoning: "Loop condition i <= nums.size() allows i to equal 5 (size), causing out-of-bounds access at nums[5]. Should use i < nums.size()."
 
-    - id: example_017
+    - id: semantic_002
+      description: "Resource leak in error path"
+      code: |
+        bool processFile(const std::string& path) {
+            FILE* f = fopen(path.c_str(), "r");
+            if (!f) return false;
+            char buffer[1024];
+            if (fread(buffer, 1, 1024, f) == 0) {
+                return false;  // Error: file not closed!
+            }
+            fclose(f);
+            return true;
+        }
+      issues:
+        - category: api-misuse
+          severity: high
+          line: 6
+          description: "File handle leaked in error path"
+          reasoning: "fopen() succeeds but early return on line 6 skips fclose(). File descriptor leaked on read error."
+
+    - id: semantic_005
       description: "Clean code - no issues"
       code: |
-        #include <memory>
-        std::unique_ptr<int> ptr = std::make_unique<int>(42);
-        std::cout << *ptr << std::endl;
-        return 0;
-      issues: []
-
-    - id: example_015
-      description: "Data race example"
-      code: |
-        #include <thread>
-        int counter = 0;
-        void incrementCounter() {
-            for (int i = 0; i < 1000; i++) {
-                counter++;  // data race!
+        void processData(const std::vector<int>& data) {
+            if (data.empty()) {
+                return;
+            }
+            for (size_t i = 0; i < data.size(); ++i) {
+                process(data[i]);
             }
         }
-        std::thread t1(incrementCounter);
-        std::thread t2(incrementCounter);
-        t1.join();
-        t2.join();
-      issues:
-        - category: concurrency
-          severity: critical
-          line: 4
-          description: "Data race - unsynchronized access to shared variable 'counter'"
-          reasoning: "Variable 'counter' is accessed by multiple threads without synchronization. The increment operation is not atomic. Use std::mutex or std::atomic<int>."
+      issues: []
 
   temperature: 0.1
   max_tokens: 2000

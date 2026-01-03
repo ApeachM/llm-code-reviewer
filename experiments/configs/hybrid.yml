@@ -1,5 +1,5 @@
-# Hybrid technique: Few-shot-5 + Chain-of-thought for specific categories
-# Phase 4: Combines strengths of both techniques
+# Hybrid technique: Few-shot + Chain-of-thought for semantic issues
+# Best accuracy but 4x slower - use for critical PRs
 
 experiment_id: hybrid_technique
 technique_name: hybrid
@@ -10,51 +10,54 @@ technique_params:
   # Sub-config for few-shot pass
   few_shot_config:
     system_prompt: |
-      You are an expert C++ code reviewer. Analyze code for issues in these categories:
-      memory-safety, modern-cpp, performance, security, concurrency
+      You are an expert C++ code reviewer specializing in SEMANTIC issues.
 
-      Respond with JSON array of issues. Each issue: {category, severity, line, description, reasoning}
+      DO NOT report memory, concurrency, or performance issues (tools handle these).
+      Focus ONLY on semantic issues requiring understanding of code INTENT.
+
+      Categories: logic-errors, api-misuse, semantic-inconsistency, edge-case-handling, code-intent-mismatch
+      Respond with JSON array: [{category, severity, line, description, reasoning}]
       If no issues, respond with [].
 
     few_shot_examples:
-      - id: example_001
-        code: "int* ptr = new int(10);\n*ptr = 42;\nreturn 0;"
+      - id: semantic_001
+        code: "std::vector<int> nums = {1,2,3};\nfor (int i = 0; i <= nums.size(); i++) sum += nums[i];"
         issues:
-          - category: memory-safety
-            severity: critical
-            line: 1
-            description: "Memory leak - pointer never deleted"
-            reasoning: "Allocated with 'new' but no corresponding 'delete'."
-
-      - id: example_002
-        code: "int* ptr = new int(100);\ndelete ptr;\nstd::cout << *ptr << std::endl;"
-        issues:
-          - category: memory-safety
-            severity: critical
-            line: 3
-            description: "Use-after-free"
-            reasoning: "Pointer deleted on line 2, then dereferenced on line 3. Undefined behavior."
-
-      - id: example_006
-        code: "Widget* w = new Widget(42);\nstd::cout << w->value;\ndelete w;"
-        issues:
-          - category: modern-cpp
-            severity: medium
-            line: 1
-            description: "Use std::unique_ptr instead of raw pointer"
-            reasoning: "Manual memory management. Use std::unique_ptr for automatic cleanup."
-
-      - id: example_015
-        code: "int counter = 0;\nvoid inc() { for(int i=0; i<1000; i++) counter++; }\nstd::thread t1(inc);\nstd::thread t2(inc);"
-        issues:
-          - category: concurrency
+          - category: logic-errors
             severity: critical
             line: 2
-            description: "Data race on shared variable"
-            reasoning: "Multiple threads access 'counter' without synchronization. Use mutex or atomic."
+            description: "Off-by-one error: loop uses <= instead of <"
+            reasoning: "Allows i to equal size, causing out-of-bounds access."
 
-      - id: example_017
-        code: "std::unique_ptr<int> ptr = std::make_unique<int>(42);\nreturn 0;"
+      - id: semantic_002
+        code: "FILE* f = fopen(path, \"r\");\nif (fread(buf, 1, 1024, f) == 0) return false;\nfclose(f);"
+        issues:
+          - category: api-misuse
+            severity: high
+            line: 2
+            description: "File handle leaked in error path"
+            reasoning: "Early return skips fclose(). File descriptor leaked."
+
+      - id: semantic_003
+        code: "double getPrice() { discountApplied_ = true; return price_ * 0.9; }"
+        issues:
+          - category: semantic-inconsistency
+            severity: medium
+            line: 1
+            description: "Getter has side effect"
+            reasoning: "'get...' implies read-only but modifies state."
+
+      - id: semantic_004
+        code: "double avg(const std::vector<double>& v) { return sum(v) / v.size(); }"
+        issues:
+          - category: edge-case-handling
+            severity: critical
+            line: 1
+            description: "Division by zero if empty"
+            reasoning: "No empty check. v.size() can be 0."
+
+      - id: semantic_005
+        code: "void process(const std::vector<int>& d) { if (d.empty()) return; for (auto x : d) work(x); }"
         issues: []
 
     temperature: 0.1
@@ -63,12 +66,12 @@ technique_params:
   # Sub-config for chain-of-thought pass
   cot_config:
     system_prompt: |
-      You are an expert C++ code reviewer. Use step-by-step reasoning to find issues.
+      You are an expert C++ code reviewer. Use step-by-step reasoning to find SEMANTIC issues.
 
       First, show your reasoning in <thinking>...</thinking> tags.
-      Then, provide your analysis as JSON array of issues.
+      Then, provide JSON array of issues.
 
-      Focus on: modern-cpp, performance
+      Focus on: semantic-inconsistency, code-intent-mismatch (complex categories)
 
       Respond with JSON array: {category, severity, line, description, reasoning}
       If no issues, respond with [].
@@ -76,12 +79,11 @@ technique_params:
     temperature: 0.1
     max_tokens: 3000
 
-  # Categories to use chain-of-thought for (based on Phase 2 results)
+  # Categories to use chain-of-thought for (complex semantic issues)
   cot_categories:
-    - modern-cpp
-    - performance
+    - semantic-inconsistency
+    - code-intent-mismatch
 
-  # Confidence threshold for filtering issues
   confidence_threshold: 0.6
 
 seed: 42

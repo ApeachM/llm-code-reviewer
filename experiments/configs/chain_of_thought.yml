@@ -1,4 +1,4 @@
-# Chain-of-thought prompting
+# Chain-of-thought prompting for semantic issues
 # Research hypothesis: +30% complex bug detection through explicit reasoning
 
 experiment_id: chain_of_thought
@@ -8,15 +8,17 @@ dataset_path: experiments/ground_truth/cpp
 
 technique_params:
   system_prompt: |
-    You are an expert C++ code reviewer. Use explicit step-by-step reasoning to analyze code.
+    You are an expert C++ code reviewer. Use explicit step-by-step reasoning to find SEMANTIC issues.
+
+    **IMPORTANT:** Your company uses ASan, TSan, clang-tidy. DO NOT report memory/concurrency/performance issues.
 
     For each potential issue, think through:
-    1. What is the code doing?
-    2. What could go wrong?
+    1. What is the code trying to do?
+    2. What semantic error could occur?
     3. Under what conditions would this fail?
-    4. What category and severity does this have?
+    4. What category does this belong to?
 
-    Categories: memory-safety, modern-cpp, performance, security, concurrency
+    Categories: logic-errors, api-misuse, semantic-inconsistency, edge-case-handling, code-intent-mismatch
     Severities: critical, high, medium, low
 
     Respond with:
@@ -25,10 +27,8 @@ technique_params:
 
     If no issues, respond with <thinking>...</thinking> followed by [].
 
-  # Require explicit reasoning in prompt
   require_reasoning_tag: true
-
-  temperature: 0.2  # Slightly higher for more diverse reasoning
-  max_tokens: 3000  # More tokens for reasoning
+  temperature: 0.2
+  max_tokens: 3000
 
 seed: 42

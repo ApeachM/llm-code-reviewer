@@ -1,4 +1,4 @@
-# Multi-pass review with self-critique
+# Multi-pass review with self-critique for semantic issues
 # Research hypothesis: -20% false positives through self-critique
 
 experiment_id: multi_pass_self_critique
@@ -9,27 +9,30 @@ dataset_path: experiments/ground_truth/cpp
 technique_params:
   # Pass 1: Initial detection
   pass1_prompt: |
-    You are an expert C++ code reviewer. Analyze this code for potential issues.
-    Categories: memory-safety, modern-cpp, performance, security, concurrency
+    You are an expert C++ code reviewer. Analyze this code for SEMANTIC issues only.
 
-    Be thorough - look for any potential issues, even if you're not 100% certain.
+    **IMPORTANT:** DO NOT report memory, concurrency, or performance issues (tools handle these).
+
+    Categories: logic-errors, api-misuse, semantic-inconsistency, edge-case-handling, code-intent-mismatch
+
+    Be thorough - look for any potential semantic issues, even if not 100% certain.
     Respond with JSON array: [{category, severity, line, description, reasoning}]
 
-  # Pass 2: Self-critique (review your own findings)
+  # Pass 2: Self-critique
   pass2_prompt: |
     You previously identified these potential issues:
     {PASS1_ISSUES}
 
     Now review each issue critically:
-    1. Is this actually an issue or a false positive?
+    1. Is this actually a SEMANTIC issue (not memory/performance)?
     2. What's your confidence level (0.0-1.0)?
     3. Should this issue be kept, modified, or removed?
 
     Respond with revised JSON array, adding "confidence" field to each issue.
-    Remove false positives. Keep only issues with confidence >= 0.6.
+    Remove issues with confidence < 0.6 or non-semantic issues.
 
-  confidence_threshold: 0.6  # Only keep issues with 60%+ confidence
+  confidence_threshold: 0.6
   temperature: 0.1
-  max_tokens: 2000  # Per pass
+  max_tokens: 2000
 
 seed: 42

@@ -8,50 +8,53 @@ dataset_path: experiments/ground_truth/cpp
 
 technique_params:
   system_prompt: |
-    You are an expert C++ code reviewer. Analyze code for issues in these categories:
-    memory-safety, modern-cpp, performance, security, concurrency
+    You are an expert C++ code reviewer specializing in SEMANTIC issues.
 
-    Respond with JSON array of issues. Each issue: {category, severity, line, description, reasoning}
+    **IMPORTANT:** DO NOT report memory, concurrency, or performance issues.
+    Focus ONLY on semantic issues requiring understanding of code INTENT.
+
+    Categories: logic-errors, api-misuse, semantic-inconsistency, edge-case-handling, code-intent-mismatch
+    Respond with JSON array: [{category, severity, line, description, reasoning}]
 
   few_shot_examples:
-    - id: example_001
-      code: "int* ptr = new int(10);\nreturn 0;"
+    - id: semantic_001
+      code: "for (int i = 0; i <= nums.size(); i++) sum += nums[i];"
       issues:
-        - category: memory-safety
+        - category: logic-errors
           severity: critical
           line: 1
-          description: "Memory leak"
-          reasoning: "No delete statement."
+          description: "Off-by-one error"
+          reasoning: "Loop allows i to equal size."
 
-    - id: example_002
-      code: "int* ptr = new int(100);\ndelete ptr;\nstd::cout << *ptr;"
+    - id: semantic_002
+      code: "FILE* f = fopen(path, \"r\");\nif (fread(buf, 1, 1024, f) == 0) return false;\nfclose(f);"
       issues:
-        - category: memory-safety
-          severity: critical
-          line: 3
-          description: "Use-after-free"
-          reasoning: "Accessing freed memory."
+        - category: api-misuse
+          severity: high
+          line: 2
+          description: "File leak in error path"
+          reasoning: "Early return skips fclose()."
 
-    - id: example_006
-      code: "Widget* w = new Widget(42);\ndelete w;"
+    - id: semantic_003
+      code: "double getPrice() { discountApplied_ = true; return price_ * 0.9; }"
       issues:
-        - category: modern-cpp
+        - category: semantic-inconsistency
           severity: medium
           line: 1
-          description: "Use unique_ptr"
-          reasoning: "Manual memory management."
+          description: "Getter has side effect"
+          reasoning: "Modifies state despite 'get' name."
 
-    - id: example_015
-      code: "int counter = 0;\nvoid inc() { counter++; }\nstd::thread t1(inc); t2(inc);"
+    - id: semantic_004
+      code: "double avg(const std::vector<double>& v) { return sum(v) / v.size(); }"
       issues:
-        - category: concurrency
+        - category: edge-case-handling
           severity: critical
-          line: 2
-          description: "Data race"
-          reasoning: "Unsynchronized access."
+          line: 1
+          description: "Division by zero if empty"
+          reasoning: "No empty check."
 
-    - id: example_017
-      code: "std::unique_ptr<int> ptr = std::make_unique<int>(42);"
+    - id: semantic_005
+      code: "if (data.empty()) return; for (auto x : data) process(x);"
       issues: []
 
   temperature: 0.1

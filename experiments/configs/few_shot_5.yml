@@ -1,5 +1,5 @@
-# Few-shot learning with 5 examples
-# Research hypothesis: Optimal balance of context vs token usage
+# Few-shot learning with 5 semantic examples (Production Default)
+# Best balance of accuracy vs token usage - F1 = 0.500 on semantic categories
 
 experiment_id: few_shot_5_examples
 technique_name: few_shot_5
@@ -8,51 +8,100 @@ dataset_path: experiments/ground_truth/cpp
 
 technique_params:
   system_prompt: |
-    You are an expert C++ code reviewer. Analyze code for issues in these categories:
-    memory-safety, modern-cpp, performance, security, concurrency
+    You are an expert C++ code reviewer specializing in SEMANTIC issues.
 
-    Respond with JSON array of issues. Each issue: {category, severity, line, description, reasoning}
+    **IMPORTANT:** Your company uses static/dynamic analysis (ASan, TSan, clang-tidy).
+    DO NOT report memory leaks, data races, or performance issues.
+    Focus ONLY on semantic issues that require understanding code INTENT.
+
+    Categories: logic-errors, api-misuse, semantic-inconsistency, edge-case-handling, code-intent-mismatch
+    Respond with JSON array: [{category, severity, line, description, reasoning}]
     If no issues, respond with [].
 
   few_shot_examples:
-    - id: example_001
-      code: "int* ptr = new int(10);\n*ptr = 42;\nreturn 0;"
+    - id: semantic_001
+      description: "Off-by-one error in loop"
+      code: |
+        std::vector<int> nums = {1, 2, 3, 4, 5};
+        int sum = 0;
+        for (int i = 0; i <= nums.size(); i++) {
+            sum += nums[i];
+        }
+        return sum;
       issues:
-        - category: memory-safety
-          severity: critical
-          line: 1
-          description: "Memory leak - pointer never deleted"
-          reasoning: "Allocated with 'new' but no corresponding 'delete'."
-
-    - id: example_002
-      code: "int* ptr = new int(100);\ndelete ptr;\nstd::cout << *ptr << std::endl;"
-      issues:
-        - category: memory-safety
+        - category: logic-errors
           severity: critical
           line: 3
-          description: "Use-after-free"
-          reasoning: "Pointer deleted on line 2, then dereferenced on line 3. Undefined behavior."
+          description: "Off-by-one error: loop uses <= instead of <"
+          reasoning: "Loop condition allows i to equal size (5), causing out-of-bounds access."
 
-    - id: example_006
-      code: "Widget* w = new Widget(42);\nstd::cout << w->value;\ndelete w;"
+    - id: semantic_002
+      description: "Resource leak in error path"
+      code: |
+        bool processFile(const std::string& path) {
+            FILE* f = fopen(path.c_str(), "r");
+            if (!f) return false;
+            char buffer[1024];
+            if (fread(buffer, 1, 1024, f) == 0) {
+                return false;  // Error: file not closed!
+            }
+            fclose(f);
+            return true;
+        }
       issues:
-        - category: modern-cpp
+        - category: api-misuse
+          severity: high
+          line: 6
+          description: "File handle leaked in error path"
+          reasoning: "fopen() succeeds but early return skips fclose(). File descriptor leaked."
+
+    - id: semantic_003
+      description: "Getter with side effect"
+      code: |
+        class PriceCalculator {
+            double price_;
+            bool discountApplied_ = false;
+        public:
+            double getDiscountedPrice() {
+                discountApplied_ = true;  // Side effect!
+                return price_ * 0.9;
+            }
+        };
+      issues:
+        - category: semantic-inconsistency
           severity: medium
-          line: 1
-          description: "Use std::unique_ptr instead of raw pointer"
-          reasoning: "Manual memory management. Use std::unique_ptr for automatic cleanup."
+          line: 6
+          description: "Getter function has side effect"
+          reasoning: "Function named 'get...' implies read-only but modifies member state."
 
-    - id: example_015
-      code: "int counter = 0;\nvoid inc() { for(int i=0; i<1000; i++) counter++; }\nstd::thread t1(inc);\nstd::thread t2(inc);"
+    - id: semantic_004
+      description: "Missing empty check"
+      code: |
+        double calculateAverage(const std::vector<double>& values) {
+            double sum = 0.0;
+            for (const auto& v : values) {
+                sum += v;
+            }
+            return sum / values.size();
+        }
       issues:
-        - category: concurrency
+        - category: edge-case-handling
           severity: critical
-          line: 2
-          description: "Data race on shared variable"
-          reasoning: "Multiple threads access 'counter' without synchronization. Use mutex or atomic."
+          line: 6
+          description: "Division by zero if vector is empty"
+          reasoning: "No empty check before division. values.size() can be 0."
 
-    - id: example_017
-      code: "std::unique_ptr<int> ptr = std::make_unique<int>(42);\nreturn 0;"
+    - id: semantic_005
+      description: "Clean code - no issues"
+      code: |
+        void processData(const std::vector<int>& data) {
+            if (data.empty()) {
+                return;
+            }
+            for (size_t i = 0; i < data.size(); ++i) {
+                process(data[i]);
+            }
+        }
       issues: []
 
   temperature: 0.1

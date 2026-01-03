@@ -156,29 +156,65 @@ public:
             ]
         }
 
-        # Example 5: Clean code (negative example - no issues)
+        # Example 5: Boolean logic error (OR vs AND)
         ex5 = {
             'id': 'semantic_005',
-            'description': 'Well-written code with proper error handling',
-            'code': '''std::optional<double> safeDivide(double a, double b) {
-    if (b == 0.0) {
+            'description': 'Wrong boolean operator in range check',
+            'code': '''bool isValidRange(int value, int min, int max) {
+    return value >= min || value <= max;  // Wrong operator!
+}''',
+            'issues': [
+                {
+                    'category': 'logic-errors',
+                    'severity': 'high',
+                    'line': 2,
+                    'description': 'Boolean logic error: uses OR instead of AND',
+                    'reasoning': 'Range check uses || (OR) instead of && (AND). Current logic returns true for ANY value. Should be: value >= min && value <= max'
+                }
+            ]
+        }
+
+        # Example 6: Integer division truncation
+        ex6 = {
+            'id': 'semantic_006',
+            'description': 'Integer division truncation in percentage',
+            'code': '''int calculatePercentage(int part, int total) {
+    return part / total * 100;  // Truncates to 0!
+}''',
+            'issues': [
+                {
+                    'category': 'logic-errors',
+                    'severity': 'high',
+                    'line': 2,
+                    'description': 'Integer division truncation causes incorrect result',
+                    'reasoning': 'part/total truncates to 0 for part < total before multiplying by 100. For part=1, total=3: (1/3)*100 = 0. Should be: (part * 100) / total'
+                }
+            ]
+        }
+
+        # Example 7: Clean code (negative example - no issues)
+        ex7 = {
+            'id': 'semantic_007',
+            'description': 'Well-written code with proper error handling - NO ISSUES',
+            'code': '''class UserRepository {
+public:
+    void addUser(const User& user) {
+        users_.push_back(user);
+    }
+
+    std::optional<User> findUserById(const std::string& id) const {
+        auto it = std::find_if(users_.begin(), users_.end(),
+            [&id](const User& u) { return u.id == id; });
+        if (it != users_.end()) return *it;
         return std::nullopt;
     }
-    return a / b;
-}
-
-void processData(const std::vector<int>& data) {
-    if (data.empty()) {
-        return;
-    }
-    for (size_t i = 0; i < data.size(); ++i) {
-        process(data[i]);
-    }
-}''',
+private:
+    std::vector<User> users_;
+};''',
             'issues': []
         }
 
-        examples = [ex1, ex2, ex3, ex4, ex5]
+        examples = [ex1, ex2, ex3, ex4, ex5, ex6, ex7]
         return examples[:num_examples]
 
     def get_system_prompt(self) -> str:

@@ -387,7 +387,7 @@ class TestExperimentConfig:
         # Verify required fields
         assert data['experiment_id'] == 'zero_shot_baseline'
         assert data['technique_name'] == 'zero_shot'
-        assert data['model_name'] == 'deepseek-coder:33b'
+        assert data['model_name'] == 'deepseek-coder:33b-instruct'
         assert data['dataset_path'] == 'experiments/ground_truth/cpp'
         assert 'technique_params' in data
 

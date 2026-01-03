@@ -7,33 +7,35 @@ model_name: deepseek-coder:33b-instruct
 dataset_path: experiments/ground_truth/cpp
 
 technique_params:
-  # Few-shot examples (3 high-quality examples)
+  # Few-shot examples (3 high-quality semantic examples)
   few_shot_examples:
-    - id: example_001
-      code: "int* ptr = new int(10);\nreturn 0;"
+    - id: semantic_001
+      code: "for (int i = 0; i <= nums.size(); i++) sum += nums[i];"
       issues:
-        - category: memory-safety
+        - category: logic-errors
           severity: critical
           line: 1
-          description: "Memory leak"
-          reasoning: "Allocated but never deleted."
+          description: "Off-by-one error"
+          reasoning: "Loop allows i to equal size, out-of-bounds access."
 
-    - id: example_015
-      code: "int counter = 0;\nvoid inc() { counter++; }\nstd::thread t1(inc);\nstd::thread t2(inc);"
+    - id: semantic_002
+      code: "FILE* f = fopen(path, \"r\");\nif (fread(buf, 1, 1024, f) == 0) return false;\nfclose(f);"
       issues:
-        - category: concurrency
-          severity: critical
+        - category: api-misuse
+          severity: high
           line: 2
-          description: "Data race"
-          reasoning: "Unsynchronized access from multiple threads."
+          description: "Resource leak in error path"
+          reasoning: "Early return skips fclose()."
 
-    - id: example_017
-      code: "std::unique_ptr<int> ptr = std::make_unique<int>(42);\nreturn 0;"
+    - id: semantic_003
+      code: "if (data.empty()) return; for (auto x : data) process(x);"
       issues: []
 
   # Pass 1: Chain-of-thought analysis with few-shot examples
   pass1_prompt: |
-    You are an expert C++ code reviewer. Use these examples as reference, then analyze the target code.
+    You are an expert C++ code reviewer for SEMANTIC issues. Use these examples as reference.
+
+    **IMPORTANT:** DO NOT report memory, concurrency, or performance issues.
 
     EXAMPLES:
     {FEW_SHOT_EXAMPLES}
@@ -42,26 +44,27 @@ technique_params:
     {CODE}
 
     Think step-by-step:
-    1. What is this code doing?
-    2. What could go wrong?
+    1. What is this code trying to do?
+    2. What semantic error could occur?
     3. What issues are present?
 
     <thinking>
     [Your reasoning here]
     </thinking>
 
+    Categories: logic-errors, api-misuse, semantic-inconsistency, edge-case-handling, code-intent-mismatch
     JSON response: [{category, severity, line, description, reasoning}]
 
   # Pass 2: Self-critique
   pass2_prompt: |
     Review your findings critically. For each issue:
-    1. Is this truly an issue?
+    1. Is this truly a SEMANTIC issue (not memory/performance)?
     2. Confidence level (0.0-1.0)?
 
     Previous issues:
     {PASS1_ISSUES}
 
-    Respond with revised JSON array with "confidence" field. Remove false positives.
+    Respond with revised JSON array with "confidence" field. Remove false positives and non-semantic issues.
 
   confidence_threshold: 0.7
   temperature: 0.1

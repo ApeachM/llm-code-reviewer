@@ -6,6 +6,7 @@ This script demonstrates the chunking workflow without requiring an LLM.
 """
 
 from pathlib import Path
+import pytest
 from framework.chunker import FileChunker
 
 def test_large_file_chunking():
@@ -14,8 +15,7 @@ def test_large_file_chunking():
     file_path = Path("large_file_test.cpp")
 
     if not file_path.exists():
-        print(f"❌ File not found: {file_path}")
-        return False
+        pytest.skip(f"Test file not found: {file_path}")
 
     # Check file size
     file_stats = file_path.stat()
@@ -99,12 +99,20 @@ def test_large_file_chunking():
 
     print()
     print("=" * 80)
-    print("🎉 Chunking test completed successfully!")
+    print("Chunking test completed successfully!")
     print()
 
-    return True
+    # Assertions for pytest
+    assert len(chunks) > 0, "Should create at least one chunk"
+    assert len(chunk_ids) == len(set(chunk_ids)), "All chunk IDs should be unique"
+    assert not overlaps, f"Found overlapping chunks: {overlaps}"
+
 
 if __name__ == "__main__":
     import sys
-    success = test_large_file_chunking()
-    sys.exit(0 if success else 1)
+    try:
+        test_large_file_chunking()
+        sys.exit(0)
+    except Exception as e:
+        print(f"Test failed: {e}")
+        sys.exit(1)

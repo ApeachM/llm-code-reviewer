@@ -1,5 +1,5 @@
 # Category-specialized hybrid: Routes categories to optimal techniques
-# Phase 4: Memory/security → Few-shot, Modern-cpp/performance → CoT
+# logic-errors/api-misuse → Few-shot, semantic-inconsistency → CoT
 
 experiment_id: hybrid_category_specialized
 technique_name: hybrid_category_specialized
@@ -7,63 +7,56 @@ model_name: deepseek-coder:33b-instruct
 dataset_path: experiments/ground_truth/cpp
 
 technique_params:
-  # Few-shot config (for memory-safety, security, concurrency)
+  # Few-shot config (for logic-errors, api-misuse, edge-case-handling)
   few_shot_config:
     system_prompt: |
-      You are an expert C++ code reviewer. Focus on: memory-safety, security, concurrency
+      You are an expert C++ code reviewer. Focus on: logic-errors, api-misuse, edge-case-handling
+
+      DO NOT report memory, concurrency, or performance issues (tools handle these).
 
       Respond with JSON array of issues. Each issue: {category, severity, line, description, reasoning}
       If no issues, respond with [].
 
     few_shot_examples:
-      - id: example_001
-        code: "int* ptr = new int(10);\n*ptr = 42;\nreturn 0;"
+      - id: semantic_001
+        code: "for (int i = 0; i <= nums.size(); i++) sum += nums[i];"
         issues:
-          - category: memory-safety
+          - category: logic-errors
             severity: critical
             line: 1
-            description: "Memory leak - pointer never deleted"
-            reasoning: "Allocated with 'new' but no corresponding 'delete'."
+            description: "Off-by-one error: uses <= instead of <"
+            reasoning: "Loop allows i to equal size, causing out-of-bounds access."
 
-      - id: example_002
-        code: "int* ptr = new int(100);\ndelete ptr;\nstd::cout << *ptr << std::endl;"
+      - id: semantic_002
+        code: "FILE* f = fopen(path, \"r\");\nif (fread(buf, 1, 1024, f) == 0) return false;\nfclose(f);"
         issues:
-          - category: memory-safety
-            severity: critical
-            line: 3
-            description: "Use-after-free"
-            reasoning: "Pointer deleted on line 2, then dereferenced on line 3. Undefined behavior."
-
-      - id: example_015
-        code: "int counter = 0;\nvoid inc() { for(int i=0; i<1000; i++) counter++; }\nstd::thread t1(inc);\nstd::thread t2(inc);"
-        issues:
-          - category: concurrency
-            severity: critical
+          - category: api-misuse
+            severity: high
             line: 2
-            description: "Data race on shared variable"
-            reasoning: "Multiple threads access 'counter' without synchronization. Use mutex or atomic."
+            description: "File handle leaked in error path"
+            reasoning: "Early return skips fclose()."
 
-      - id: security_example
-        code: "std::string query = \"SELECT * FROM users WHERE id=\" + user_input;"
+      - id: semantic_003
+        code: "double avg(const std::vector<double>& v) { return sum(v) / v.size(); }"
         issues:
-          - category: security
+          - category: edge-case-handling
             severity: critical
             line: 1
-            description: "SQL injection vulnerability"
-            reasoning: "User input concatenated directly into SQL query. Use prepared statements."
+            description: "Division by zero if empty"
+            reasoning: "No empty check before division."
 
-      - id: example_017
-        code: "std::unique_ptr<int> ptr = std::make_unique<int>(42);\nreturn 0;"
+      - id: semantic_004
+        code: "if (data.empty()) return; for (auto x : data) process(x);"
         issues: []
 
     temperature: 0.1
     max_tokens: 2000
 
-  # Chain-of-thought config (for modern-cpp, performance)
+  # Chain-of-thought config (for semantic-inconsistency, code-intent-mismatch)
   cot_config:
     system_prompt: |
       You are an expert C++ code reviewer. Use step-by-step reasoning.
-      Focus on: modern-cpp, performance
+      Focus on: semantic-inconsistency, code-intent-mismatch
 
       First, show your reasoning in <thinking>...</thinking> tags.
       Then, provide your analysis as JSON array.

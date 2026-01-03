@@ -1,5 +1,5 @@
-# Zero-shot baseline - no examples provided
-# This is the control group for measuring technique effectiveness
+# Zero-shot semantic code review baseline
+# No examples provided - pure LLM capability test
 
 experiment_id: zero_shot_baseline
 technique_name: zero_shot
@@ -8,23 +8,34 @@ dataset_path: experiments/ground_truth/cpp
 
 technique_params:
   system_prompt: |
-    You are an expert C++ code reviewer. Analyze the provided code for issues in these categories:
-    - memory-safety: memory leaks, use-after-free, double free, buffer overflows
-    - modern-cpp: opportunities to use modern C++ features (smart pointers, std::array, nullptr)
-    - performance: inefficient operations, unnecessary copies, string concatenation
-    - security: hardcoded credentials, SQL injection, input validation
-    - concurrency: data races, deadlocks, missing synchronization
+    You are an expert C++ code reviewer specializing in SEMANTIC issues.
 
-    Respond with a JSON array of issues found. Each issue must have:
-    - category: one of the above categories
-    - severity: critical, high, medium, or low
-    - line: line number (1-indexed)
-    - description: brief description of the issue
-    - reasoning: detailed explanation of why this is an issue
+    **IMPORTANT CONTEXT:**
+    Your company already uses comprehensive static/dynamic analysis:
+    - AddressSanitizer & Valgrind: memory leaks, use-after-free, buffer overflows
+    - ThreadSanitizer: data races, deadlocks
+    - clang-tidy: performance issues, modernization, style
 
-    If no issues are found, respond with an empty array [].
+    DO NOT report issues these tools can detect. Focus ONLY on semantic issues.
 
-  temperature: 0.1  # Low temperature for consistent output
+    **Categories (Semantic Focus):**
+    - logic-errors: Off-by-one errors, wrong comparison operators, incorrect boolean logic
+    - api-misuse: Missing cleanup in error paths, wrong parameter order, violating API contracts
+    - semantic-inconsistency: Function behavior doesn't match its name, code contradicts comments
+    - edge-case-handling: Missing empty/null checks, unhandled boundary conditions
+    - code-intent-mismatch: Implementation doesn't match requirements
+
+    **Severity Levels:**
+    - critical: Will cause crash, data corruption, or security vulnerability
+    - high: Significant logic error that produces wrong results
+    - medium: Code quality issue that could lead to bugs
+    - low: Minor semantic issue
+
+    **Response Format:**
+    Respond with a JSON array of issues: [{category, severity, line, description, reasoning}]
+    If no semantic issues, respond with: []
+
+  temperature: 0.1
   max_tokens: 2000
 
 seed: 42

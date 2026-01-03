@@ -31,10 +31,14 @@ CATEGORY_NORMALIZATION_MAP: Dict[str, str] = {
     'logic-error': 'logic-errors',
     'logical-error': 'logic-errors',
     'off-by-one': 'logic-errors',
+    'off-by-one-error': 'logic-errors',
+    'off-by-one-errors': 'logic-errors',
     'boolean-logic': 'logic-errors',
     'integer-division': 'logic-errors',
     'arithmetic-error': 'logic-errors',
     'operator-error': 'logic-errors',
+    'comparison-error': 'logic-errors',
+    'loop-error': 'logic-errors',
 
     # Common variations -> api-misuse
     'resource-leak': 'api-misuse',

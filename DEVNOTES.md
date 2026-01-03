@@ -244,3 +244,25 @@ Implemented automatic category normalization in `framework/models.py`:
 ### Files Modified
 - `framework/models.py`: Added `CATEGORY_NORMALIZATION_MAP`, `normalize_category()` function
 - `tests/test_phase0_integration.py`: Added `test_category_normalization` test
+
+### Experiment Results (v1.0.4)
+
+After adding additional mappings (`off-by-one-error`, `comparison-error`, `loop-error`):
+
+| Technique | Before Normalization | After Normalization | Improvement |
+|-----------|---------------------|---------------------|-------------|
+| Zero-shot | F1=0.302 | **F1=0.441** | **+46%** |
+| Few-shot-5 | F1=0.500 | **F1=0.545** | **+9%** |
+
+#### Per-Category Analysis (Few-shot-5, v1.0.4)
+
+| Category | Precision | Recall | F1 |
+|----------|-----------|--------|-----|
+| logic-errors | 0.500 | 0.400 | 0.444 |
+| semantic-inconsistency | 0.667 | 0.800 | **0.727** |
+| edge-case-handling | 1.000 | 0.400 | 0.571 |
+| api-misuse | 0.250 | 0.500 | 0.333 |
+| code-intent-mismatch | 0.333 | 1.000 | 0.500 |
+
+**Best Category**: semantic-inconsistency (F1=0.727)
+**Needs Improvement**: api-misuse (F1=0.333)

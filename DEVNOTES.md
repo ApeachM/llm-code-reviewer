@@ -266,3 +266,40 @@ After adding additional mappings (`off-by-one-error`, `comparison-error`, `loop-
 
 **Best Category**: semantic-inconsistency (F1=0.727)
 **Needs Improvement**: api-misuse (F1=0.333)
+
+---
+
+## 2026-01-03: API-misuse Category Improvement
+
+### Problem
+api-misuse category had the lowest F1 score (0.333) with only 1 few-shot example covering resource leaks.
+
+### Solution
+1. Added 2 new api-misuse examples to cpp_plugin.py:
+   - Wrong parameter order (source/dest swapped)
+   - Ignored return value (file.read() not checked)
+
+2. Created `few_shot_7.yml` config with 7 examples:
+   - 1 logic-errors
+   - 3 api-misuse (resource leak, param order, return value)
+   - 1 semantic-inconsistency
+   - 1 edge-case-handling
+   - 1 clean code (negative)
+
+### Results
+
+| Config | api-misuse F1 | Overall F1 |
+|--------|---------------|------------|
+| few_shot_5 (original) | 0.333 | 0.545 |
+| **few_shot_7** | **0.400-0.533** | **0.558-0.605** |
+
+**Key Improvements:**
+- api-misuse F1: +20% to +60%
+- Overall F1: +2% to +11%
+
+### Files Modified
+- `plugins/cpp_plugin.py`: Added ex3 (param order), ex4 (return value ignored)
+- `experiments/configs/few_shot_7.yml`: New config with 7 examples
+
+### Recommendation
+Use `few_shot_7.yml` for production when api-misuse detection is important.

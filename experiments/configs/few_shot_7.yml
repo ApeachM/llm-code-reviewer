@@ -1,0 +1,144 @@
+# Few-shot learning with 7 examples (Enhanced API-misuse coverage)
+# Extended coverage for api-misuse category
+
+experiment_id: few_shot_7_examples
+technique_name: few_shot_5
+model_name: deepseek-coder:33b-instruct
+dataset_path: experiments/ground_truth/cpp
+
+technique_params:
+  system_prompt: |
+    You are an expert C++ code reviewer specializing in SEMANTIC issues.
+
+    **IMPORTANT:** Your company uses static/dynamic analysis (ASan, TSan, clang-tidy).
+    DO NOT report memory leaks, data races, or performance issues.
+    Focus ONLY on semantic issues that require understanding code INTENT.
+
+    Categories: logic-errors, api-misuse, semantic-inconsistency, edge-case-handling, code-intent-mismatch
+    Respond with JSON array: [{category, severity, line, description, reasoning}]
+    If no issues, respond with [].
+
+  few_shot_examples:
+    - id: semantic_001
+      description: "Off-by-one error in loop"
+      code: |
+        std::vector<int> nums = {1, 2, 3, 4, 5};
+        int sum = 0;
+        for (int i = 0; i <= nums.size(); i++) {
+            sum += nums[i];
+        }
+        return sum;
+      issues:
+        - category: logic-errors
+          severity: critical
+          line: 3
+          description: "Off-by-one error: loop uses <= instead of <"
+          reasoning: "Loop condition allows i to equal size (5), causing out-of-bounds access."
+
+    - id: semantic_002
+      description: "Resource leak in error path"
+      code: |
+        bool processFile(const std::string& path) {
+            FILE* f = fopen(path.c_str(), "r");
+            if (!f) return false;
+            char buffer[1024];
+            if (fread(buffer, 1, 1024, f) == 0) {
+                return false;  // Error: file not closed!
+            }
+            fclose(f);
+            return true;
+        }
+      issues:
+        - category: api-misuse
+          severity: high
+          line: 6
+          description: "File handle leaked in error path"
+          reasoning: "fopen() succeeds but early return skips fclose(). File descriptor leaked."
+
+    - id: semantic_003
+      description: "Getter with side effect"
+      code: |
+        class PriceCalculator {
+            double price_;
+            bool discountApplied_ = false;
+        public:
+            double getDiscountedPrice() {
+                discountApplied_ = true;  // Side effect!
+                return price_ * 0.9;
+            }
+        };
+      issues:
+        - category: semantic-inconsistency
+          severity: medium
+          line: 6
+          description: "Getter function has side effect"
+          reasoning: "Function named 'get...' implies read-only but modifies member state."
+
+    - id: semantic_004
+      description: "Missing empty check"
+      code: |
+        double calculateAverage(const std::vector<double>& values) {
+            double sum = 0.0;
+            for (const auto& v : values) {
+                sum += v;
+            }
+            return sum / values.size();
+        }
+      issues:
+        - category: edge-case-handling
+          severity: critical
+          line: 6
+          description: "Division by zero if vector is empty"
+          reasoning: "No empty check before division. values.size() can be 0."
+
+    - id: semantic_005
+      description: "Wrong parameter order"
+      code: |
+        void copyBuffer(char* dest, const char* src, size_t size) {
+            memcpy(dest, src, size);
+        }
+        void process() {
+            char source[100] = "hello";
+            char destination[100];
+            copyBuffer(source, destination, 100);  // Wrong order!
+        }
+      issues:
+        - category: api-misuse
+          severity: critical
+          line: 7
+          description: "Source and destination parameters swapped"
+          reasoning: "copyBuffer expects (dest, src) but caller passes (source, destination). Copies uninitialized data."
+
+    - id: semantic_006
+      description: "Return value ignored"
+      code: |
+        void processData(const std::string& filename) {
+            std::ifstream file(filename);
+            char buffer[1024];
+            file.read(buffer, sizeof(buffer));
+            processBuffer(buffer);
+        }
+      issues:
+        - category: api-misuse
+          severity: high
+          line: 4
+          description: "Return value of read() ignored"
+          reasoning: "file.read() return not checked. If read fails, processBuffer gets uninitialized data."
+
+    - id: semantic_007
+      description: "Clean code - no issues"
+      code: |
+        void processData(const std::vector<int>& data) {
+            if (data.empty()) {
+                return;
+            }
+            for (size_t i = 0; i < data.size(); ++i) {
+                process(data[i]);
+            }
+        }
+      issues: []
+
+  temperature: 0.1
+  max_tokens: 2000
+
+seed: 42

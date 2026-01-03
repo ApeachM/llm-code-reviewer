@@ -109,9 +109,55 @@ return sum;''',
             ]
         }
 
-        # Example 3: Semantic inconsistency - getter modifies state
+        # Example 3: API misuse - wrong parameter order
         ex3 = {
             'id': 'semantic_003',
+            'description': 'Source and destination parameters swapped',
+            'code': '''void copyBuffer(char* dest, const char* src, size_t size) {
+    memcpy(dest, src, size);
+}
+
+void process() {
+    char source[100] = "hello";
+    char destination[100];
+    copyBuffer(source, destination, 100); // Wrong order!
+}''',
+            'issues': [
+                {
+                    'category': 'api-misuse',
+                    'severity': 'critical',
+                    'line': 8,
+                    'description': 'Source and destination parameters swapped',
+                    'reasoning': 'copyBuffer expects (dest, src, size) but caller passes (source, destination, size). This copies uninitialized data from destination to source, corrupting the source buffer.'
+                }
+            ]
+        }
+
+        # Example 4: API misuse - ignoring return value
+        ex4 = {
+            'id': 'semantic_004',
+            'description': 'Critical return value ignored',
+            'code': '''void processData(const std::string& filename) {
+    std::ifstream file(filename);
+    char buffer[1024];
+    file.read(buffer, sizeof(buffer));
+    // Return value ignored - don't know if read succeeded
+    processBuffer(buffer);
+}''',
+            'issues': [
+                {
+                    'category': 'api-misuse',
+                    'severity': 'high',
+                    'line': 4,
+                    'description': 'Return value of read() ignored',
+                    'reasoning': 'file.read() returns the stream reference indicating success/failure, but it is not checked. If read fails, processBuffer receives uninitialized or partial data. Should check file.good() or file.gcount().'
+                }
+            ]
+        }
+
+        # Example 5: Semantic inconsistency - getter modifies state
+        ex5 = {
+            'id': 'semantic_005',
             'description': 'Function name implies read-only but modifies state',
             'code': '''class PriceCalculator {
     double price_;
@@ -134,9 +180,9 @@ public:
             ]
         }
 
-        # Example 4: Edge case handling - no empty check
-        ex4 = {
-            'id': 'semantic_004',
+        # Example 6: Edge case handling - no empty check
+        ex6 = {
+            'id': 'semantic_006',
             'description': 'Missing empty container check',
             'code': '''double calculateAverage(const std::vector<double>& values) {
     double sum = 0.0;
@@ -156,9 +202,9 @@ public:
             ]
         }
 
-        # Example 5: Boolean logic error (OR vs AND)
-        ex5 = {
-            'id': 'semantic_005',
+        # Example 7: Boolean logic error (OR vs AND)
+        ex7 = {
+            'id': 'semantic_007',
             'description': 'Wrong boolean operator in range check',
             'code': '''bool isValidRange(int value, int min, int max) {
     return value >= min || value <= max;  // Wrong operator!
@@ -174,9 +220,9 @@ public:
             ]
         }
 
-        # Example 6: Integer division truncation
-        ex6 = {
-            'id': 'semantic_006',
+        # Example 8: Integer division truncation
+        ex8 = {
+            'id': 'semantic_008',
             'description': 'Integer division truncation in percentage',
             'code': '''int calculatePercentage(int part, int total) {
     return part / total * 100;  // Truncates to 0!
@@ -192,39 +238,9 @@ public:
             ]
         }
 
-        # Example 7: const vs non-const function distinction
-        ex7 = {
-            'id': 'semantic_007',
-            'description': 'Const function vs non-const getter - only non-const has issue',
-            'code': '''class Counter {
-    int count_ = 0;
-    mutable int accessCount_ = 0;
-public:
-    // OK: const function - cannot have side effects on non-mutable members
-    int getValue() const {
-        return count_;  // NO ISSUE - const functions are safe
-    }
-
-    // BUG: non-const getter modifies state
-    int getCurrentCount() {
-        count_++;  // ISSUE: side effect in getter
-        return count_;
-    }
-};''',
-            'issues': [
-                {
-                    'category': 'semantic-inconsistency',
-                    'severity': 'medium',
-                    'line': 12,
-                    'description': 'Non-const getter function modifies member state',
-                    'reasoning': 'getCurrentCount() is named like a getter but modifies count_. Function is not marked const and has unexpected side effect. Either mark const and remove modification, or rename to incrementAndGet().'
-                }
-            ]
-        }
-
-        # Example 8: Clean code (negative example - no issues)
-        ex8 = {
-            'id': 'semantic_008',
+        # Example 9: Clean code (negative example - no issues)
+        ex9 = {
+            'id': 'semantic_009',
             'description': 'Well-written code with proper error handling - NO ISSUES',
             'code': '''class UserRepository {
 public:
@@ -244,7 +260,19 @@ private:
             'issues': []
         }
 
-        examples = [ex1, ex2, ex3, ex4, ex5, ex6, ex7, ex8]
+        # Example ordering strategy:
+        # First 5 (default): Balanced coverage of all major categories
+        # - ex1: logic-errors (off-by-one)
+        # - ex2: api-misuse (resource leak)
+        # - ex5: semantic-inconsistency (getter side effect)
+        # - ex6: edge-case-handling (empty check)
+        # - ex7: logic-errors (boolean logic)
+        #
+        # Extended examples (for num_examples > 5):
+        # - ex3, ex4: Additional api-misuse patterns
+        # - ex8: Additional logic-errors
+        # - ex9: Clean code (negative example)
+        examples = [ex1, ex2, ex5, ex6, ex7, ex3, ex4, ex8, ex9]
         return examples[:num_examples]
 
     def get_system_prompt(self) -> str:

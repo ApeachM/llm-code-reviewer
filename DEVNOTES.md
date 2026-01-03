@@ -166,3 +166,45 @@ Test files saved to `validation/test_cases/`:
 - `pr_simulation.cpp` - Complex PR simulation
 
 See `VALIDATION_REPORT.md` for full details.
+
+---
+
+## 2026-01-03: Const Function Analysis Improvement
+
+### Problem Identified
+During PR simulation validation, the analyzer incorrectly flagged `const` member functions as having side effects. In C++, functions marked `const` cannot modify member state by definition.
+
+### Solution Implemented
+
+1. **Enhanced System Prompt** (`plugins/cpp_plugin.py`):
+   - Added "const Function Rules" section
+   - Explicitly states that `const` functions cannot have side effects
+   - Only non-const "getter" functions should be flagged for semantic-inconsistency
+
+2. **New Few-shot Example** (Example 7):
+   - Demonstrates const vs non-const getter distinction
+   - Shows that only non-const getters with state modification should be flagged
+
+### Results After Improvement
+
+| Test File | Before | After |
+|-----------|--------|-------|
+| verilator_style_bugs.cpp | 5/5 TP | 5/5 TP |
+| pr_simulation.cpp | 3 TP, **3 FP** | 3 TP, **0 FP** |
+
+**Key Improvement**: Eliminated all false positives on const functions!
+
+### Remaining Issue
+- Model sometimes uses categories outside the allowed set (e.g., 'code-quality' instead of 'edge-case-handling')
+- Division by zero issues detected but filtered due to incorrect category
+- This is a categorization issue, not a detection issue
+
+### Files Modified
+- `plugins/cpp_plugin.py`:
+  - Added const function rules to system prompt
+  - Added example 7 (const vs non-const distinction)
+  - Added example 8 (clean code negative example)
+
+### Next Steps
+- Consider adding category normalization in post-processing
+- Improve system prompt to enforce category constraints

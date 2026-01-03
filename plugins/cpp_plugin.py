@@ -192,9 +192,39 @@ public:
             ]
         }
 
-        # Example 7: Clean code (negative example - no issues)
+        # Example 7: const vs non-const function distinction
         ex7 = {
             'id': 'semantic_007',
+            'description': 'Const function vs non-const getter - only non-const has issue',
+            'code': '''class Counter {
+    int count_ = 0;
+    mutable int accessCount_ = 0;
+public:
+    // OK: const function - cannot have side effects on non-mutable members
+    int getValue() const {
+        return count_;  // NO ISSUE - const functions are safe
+    }
+
+    // BUG: non-const getter modifies state
+    int getCurrentCount() {
+        count_++;  // ISSUE: side effect in getter
+        return count_;
+    }
+};''',
+            'issues': [
+                {
+                    'category': 'semantic-inconsistency',
+                    'severity': 'medium',
+                    'line': 12,
+                    'description': 'Non-const getter function modifies member state',
+                    'reasoning': 'getCurrentCount() is named like a getter but modifies count_. Function is not marked const and has unexpected side effect. Either mark const and remove modification, or rename to incrementAndGet().'
+                }
+            ]
+        }
+
+        # Example 8: Clean code (negative example - no issues)
+        ex8 = {
+            'id': 'semantic_008',
             'description': 'Well-written code with proper error handling - NO ISSUES',
             'code': '''class UserRepository {
 public:
@@ -214,7 +244,7 @@ private:
             'issues': []
         }
 
-        examples = [ex1, ex2, ex3, ex4, ex5, ex6, ex7]
+        examples = [ex1, ex2, ex3, ex4, ex5, ex6, ex7, ex8]
         return examples[:num_examples]
 
     def get_system_prompt(self) -> str:
@@ -270,6 +300,11 @@ If no semantic issues are found, respond with an empty array: []
 - FOCUS on mismatches between code behavior and naming/documentation
 - Be CONSERVATIVE - only report issues you are confident about
 - Explain WHY this is a semantic issue, not just what the code does
+
+**const Function Rules:**
+- Functions marked `const` CANNOT modify member state - DO NOT flag them for side effects
+- Only flag semantic-inconsistency for non-const "getter" functions (get*, is*, has*) that modify state
+- If a function has `const` keyword after parameters, it guarantees no side effects on member variables
 """
 
     def should_analyze_file(self, file_path: Path) -> bool:
